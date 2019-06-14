@@ -1,0 +1,8 @@
+components
+examples
+.idea
+.serverless
+coverage
+.env*
+env.js
+tmp

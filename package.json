@@ -1,0 +1,36 @@
+{
+  "name": "@serverless/cli",
+  "version": "0.0.6",
+  "description": "Serverless Components CLI",
+  "main": "./src/index.js",
+  "bin": {
+    "cli": "./bin/bin"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint . --fix --cache"
+  },
+  "author": "Serverless, Inc.",
+  "license": "MIT",
+  "dependencies": {
+    "@serverless/core": "^0.1.0",
+    "ansi-escapes": "^4.2.0",
+    "chalk": "^2.4.2",
+    "dotenv": "^8.0.0",
+    "figures": "^3.0.0",
+    "minimist": "^1.2.0",
+    "strip-ansi": "^5.2.0",
+    "util": "^0.12.0"
+  },
+  "devDependencies": {
+    "babel-eslint": "9.0.0",
+    "eslint": "5.6.0",
+    "eslint-config-prettier": "^3.6.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-prettier": "^3.0.1",
+    "prettier": "^1.15.3"
+  }
+}

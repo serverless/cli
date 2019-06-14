@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+
+const run = require('../src')
+
+// todo move to utils or CLI
+// Set config from CLI input
+
+// Run
+;(async () => {
+  return run()
+})().catch((e) => console.log(e.stack)) // eslint-disable-line
