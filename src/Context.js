@@ -25,7 +25,6 @@ class CLI {
     this.stateRoot = config.stateRoot
       ? path.resolve(config.stateRoot)
       : path.join(this.root, '.serverless')
-    this.stage = config.stage || 'dev'
     this.credentials = config.credentials || {}
     this.outputs = {}
 
@@ -59,7 +58,6 @@ class CLI {
   }
 
   config(config) {
-    this.stage = config.stage
     if (typeof config.useTimer === 'boolean') {
       this._.useTimer = config.useTimer
     }
@@ -105,17 +103,13 @@ class CLI {
   statusEngineStop(reason, message) {
     this._.status.running = false
 
-    let stage
     if (reason === 'error') {
-      stage = red(this.stage)
       message = red(message)
     }
     if (reason === 'cancel') {
-      stage = red(this.stage)
       message = red('canceled')
     }
     if (reason === 'done') {
-      stage = green(this.stage)
       message = green('done')
     }
 
@@ -130,8 +124,7 @@ class CLI {
       content += ` ${grey(this._.seconds + 's')}`
       content += ` ${grey(figures.pointerSmall)}`
     }
-    content += ` ${stage}`
-    content += ` ${grey(figures.pointerSmall)} ${this._.entity}`
+    content += ` ${this._.entity}`
     content += ` ${grey(figures.pointerSmall)} ${message}`
     process.stdout.write(content)
 
@@ -188,8 +181,8 @@ class CLI {
       content += ` ${grey(this._.seconds + 's')}`
       content += ` ${grey(figures.pointerSmall)}`
     }
-    content += ` ${green(this.stage)}`
-    content += ` ${grey(figures.pointerSmall)} ${this._.entity}`
+
+    content += ` ${this._.entity}`
     content += ` ${grey(figures.pointerSmall)} ${grey(this._.status.message)}`
     content += ` ${grey(this._.status.loadingDots)}`
     process.stdout.write(content)
@@ -392,7 +385,7 @@ class CLI {
     // Load env vars
     let envVars = {}
     const defaultEnvFilePath = path.join(this.root, `.env`)
-    const stageEnvFilePath = path.join(this.root, `.env.${this.stage}`)
+    const stageEnvFilePath = path.join(this.root, `.env.dev`) // todo remove this
     if (await utils.fileExists(stageEnvFilePath)) {
       envVars = dotenv.config({ path: path.resolve(stageEnvFilePath) }).parsed || {}
     } else if (await utils.fileExists(defaultEnvFilePath)) {
@@ -402,7 +395,6 @@ class CLI {
     // Known Provider Environment Variables and their SDK configuration properties
     const providers = {}
 
-    // todo this is not the object aws expects
     // AWS
     providers.aws = {}
     providers.aws.AWS_ACCESS_KEY_ID = 'accessKeyId'
@@ -420,7 +412,6 @@ class CLI {
         if (!credentials[provider]) {
           credentials[provider] = {}
         }
-
         credentials[provider][providerEnvVars[providerEnvVar]] = envVars[providerEnvVar]
       }
     }

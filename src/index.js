@@ -1,33 +1,44 @@
 const path = require('path')
 const args = require('minimist')(process.argv.slice(2))
+const { utils } = require('@serverless/core')
 const Context = require('./Context')
 
-/**
- * serverless
- */
-
-// todo support remove/methods
 const run = async () => {
-  const method = args._[0] || null
-  const Component = require(path.join(process.cwd(), 'serverless'))
+  const method = args._[0] || undefined
+  const inputs = args
+  delete inputs._ // remove the method name if any
+
+  const componentPath = path.join(process.cwd(), 'serverless.js')
+
+  if (!(await utils.fileExists(componentPath))) {
+    console.log() // eslint-disable-line
+    console.log('  serverless.js file not found.') // eslint-disable-line
+    console.log() // eslint-disable-line
+    return
+  }
+
+  const Component = require(componentPath)
 
   const config = {
     root: process.cwd(),
     stateRoot: path.join(process.cwd(), '.serverless'),
-    stage: args.s || args.stage ? args.s || args.stage : 'dev'
+    entity: Component.constructor.name
   }
   const context = new Context(config)
-  await context.setCredentials()
-
-  const componentId = `${config.stage}.${Component.constructor.name}`
-  const component = new Component(undefined, context)
-  await component.init()
 
   try {
+    await context.setCredentials()
+
+    const component = new Component(undefined, context)
+    await component.init()
+
     if (method) {
-      await component[method]()
+      if (typeof component[method] !== 'function') {
+        throw Error(`  method ${method} not found`)
+      }
+      await component[method](inputs)
     } else {
-      await component()
+      await component(inputs)
     }
     context.close('done')
   } catch (e) {
