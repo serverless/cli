@@ -1,6 +1,6 @@
 {
   "name": "@serverless/cli",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Serverless Components CLI",
   "main": "./src/index.js",
   "bin": {
@@ -22,8 +22,7 @@
     "dotenv": "^8.0.0",
     "figures": "^3.0.0",
     "minimist": "^1.2.0",
-    "strip-ansi": "^5.2.0",
-    "util": "^0.12.0"
+    "strip-ansi": "^5.2.0"
   },
   "devDependencies": {
     "babel-eslint": "9.0.0",

@@ -27,6 +27,9 @@ class CLI {
       : path.join(this.root, '.serverless')
     this.credentials = config.credentials || {}
     this.outputs = {}
+    this.resourceGroupId = Math.random()
+    .toString(36)
+    .substring(6)
 
     // Defaults
     this._ = {}
@@ -369,10 +372,17 @@ class CLI {
 
   async readState(id) {
     const stateFilePath = path.join(this.stateRoot, `${id}.json`)
-    if (await utils.fileExists(stateFilePath)) {
-      return utils.readFile(stateFilePath)
+    let state = {
+      resourceGroupId: this.resourceGroupId
     }
-    return {}
+    if ((await fileExists(stateFilePath)) && (await readFile(stateFilePath)).resourceGroupId) {
+      state = await readFile(stateFilePath)
+      this.resourceGroupId = state.resourceGroupId
+    } else {
+      await this.writeState(id, state)
+    }
+
+    return state
   }
 
   async writeState(id, state) {
