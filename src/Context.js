@@ -375,8 +375,8 @@ class CLI {
     let state = {
       resourceGroupId: this.resourceGroupId
     }
-    if ((await fileExists(stateFilePath)) && (await readFile(stateFilePath)).resourceGroupId) {
-      state = await readFile(stateFilePath)
+    if ((await utils.fileExists(stateFilePath)) && (await utils.readFile(stateFilePath)).resourceGroupId) {
+      state = await utils.readFile(stateFilePath)
       this.resourceGroupId = state.resourceGroupId
     } else {
       await this.writeState(id, state)

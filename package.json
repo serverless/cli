@@ -1,6 +1,6 @@
 {
   "name": "@serverless/cli",
-  "version": "0.0.8",
+  "version": "0.1.0",
   "description": "Serverless Components CLI",
   "main": "./src/index.js",
   "bin": {
