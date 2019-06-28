@@ -1,8 +1,7 @@
 const path = require('path')
 const args = require('minimist')(process.argv.slice(2))
-const { utils, Component } = require('@serverless/core')
+const { utils } = require('@serverless/core')
 const Context = require('./Context')
-const fse = require('fs-extra')
 
 // needs to be a sync function to work simply with v1
 const runningComponents = () => {
@@ -10,7 +9,7 @@ const runningComponents = () => {
 
   if (utils.fileExistsSync(serverlessJsPath)) {
     const component = require(serverlessJsPath)
-    if (component instanceof Component) {
+    if (typeof component === 'function') {
       return true
     }
   }
@@ -36,6 +35,7 @@ const runComponents = async () => {
   const config = {
     root: process.cwd(),
     stateRoot: path.join(process.cwd(), '.serverless'),
+    debug: inputs.debug,
     entity: Component.constructor.name
   }
   const context = new Context(config)

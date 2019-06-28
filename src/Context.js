@@ -1,9 +1,4 @@
-// CLI context
-// - saves state in cwd
-// - generates credentials from cwd
-// - logs stuff in CLI
 const os = require('os')
-const util = require('util')
 const chalk = require('chalk')
 const ansiEscapes = require('ansi-escapes')
 const stripAnsi = require('strip-ansi')
@@ -26,10 +21,11 @@ class CLI {
       ? path.resolve(config.stateRoot)
       : path.join(this.root, '.serverless')
     this.credentials = config.credentials || {}
+    this.debugMode = config.debug || false
     this.outputs = {}
     this.resourceGroupId = Math.random()
-    .toString(36)
-    .substring(6)
+      .toString(36)
+      .substring(6)
 
     // Defaults
     this._ = {}
@@ -60,10 +56,68 @@ class CLI {
     }, 1000)
   }
 
-  config(config) {
-    if (typeof config.useTimer === 'boolean') {
-      this._.useTimer = config.useTimer
+  async readState(id) {
+    const stateFilePath = path.join(this.stateRoot, `${id}.json`)
+    let state = {
+      resourceGroupId: this.resourceGroupId
     }
+    if (
+      (await utils.fileExists(stateFilePath)) &&
+      (await utils.readFile(stateFilePath)).resourceGroupId
+    ) {
+      state = await utils.readFile(stateFilePath)
+      this.resourceGroupId = state.resourceGroupId
+    } else {
+      await this.writeState(id, state)
+    }
+
+    return state
+  }
+
+  async writeState(id, state) {
+    const stateFilePath = path.join(this.stateRoot, `${id}.json`)
+    await utils.writeFile(stateFilePath, state)
+    return state
+  }
+
+  async setCredentials() {
+    // Load env vars
+    let envVars = {}
+    const defaultEnvFilePath = path.join(this.root, `.env`)
+    const stageEnvFilePath = path.join(this.root, `.env.dev`) // todo remove this
+    if (await utils.fileExists(stageEnvFilePath)) {
+      envVars = dotenv.config({ path: path.resolve(stageEnvFilePath) }).parsed || {}
+    } else if (await utils.fileExists(defaultEnvFilePath)) {
+      envVars = dotenv.config({ path: path.resolve(defaultEnvFilePath) }).parsed || {}
+    }
+
+    // Known Provider Environment Variables and their SDK configuration properties
+    const providers = {}
+
+    // AWS
+    providers.aws = {}
+    providers.aws.AWS_ACCESS_KEY_ID = 'accessKeyId'
+    providers.aws.AWS_SECRET_ACCESS_KEY = 'secretAccessKey'
+    providers.aws.AWS_REGION = 'region'
+
+    const credentials = {}
+
+    for (const provider in providers) {
+      const providerEnvVars = providers[provider]
+      for (const providerEnvVar in providerEnvVars) {
+        if (!envVars.hasOwnProperty(providerEnvVar)) {
+          continue
+        }
+        if (!credentials[provider]) {
+          credentials[provider] = {}
+        }
+        credentials[provider][providerEnvVars[providerEnvVar]] = envVars[providerEnvVar]
+      }
+    }
+
+    this.credentials = credentials
+
+    return credentials
   }
 
   close(reason, message) {
@@ -86,7 +140,7 @@ class CLI {
   }
 
   async statusEngine() {
-    this.renderStatusEngineStatement()
+    this.renderStatus()
     await utils.sleep(100)
     if (this.isStatusEngineActive()) {
       return this.statusEngine()
@@ -143,7 +197,7 @@ class CLI {
     }
   }
 
-  renderStatusEngineStatement(status, entity) {
+  renderStatus(status, entity) {
     // Start Status engine, if it isn't running yet
     if (!this.isStatusEngineActive()) {
       this.statusEngineStart()
@@ -199,39 +253,8 @@ class CLI {
     process.stdout.write(ansiEscapes.cursorLeft)
   }
 
-  renderStatusStatement(status, entity) {
-    // If no arguments, skip
-    if (!status || status == '') {
-      return
-    }
-    if (!entity || entity == '') {
-      return
-    }
-
-    // Clear any existing content
-    process.stdout.write(ansiEscapes.eraseDown)
-    console.log() // eslint-disable-line
-
-    // Write log
-    entity = `${this._.useTimer ? grey(this._.seconds + `s` + figures.pointerSmall) : ''} ${grey(
-      entity
-    )} ${grey(figures.pointerSmall)} ${grey(`status:`)}`
-    console.log(`  ${entity}`) // eslint-disable-line
-    console.log(` `, status) //eslint-disable-line
-
-    // Put cursor to starting position for next view
-    process.stdout.write(ansiEscapes.cursorLeft)
-  }
-
-  renderStatus(verbose, status, entity) {
-    if (!verbose) {
-      return this.renderStatusEngineStatement(status, entity)
-    }
-    return this.renderStatusStatement(status, entity)
-  }
-
-  renderLog(log) {
-    if (!log || log == '') {
+  renderLog(msg) {
+    if (!msg || msg == '') {
       console.log() // eslint-disable-line
       return
     }
@@ -240,15 +263,14 @@ class CLI {
     process.stdout.write(ansiEscapes.eraseDown)
     console.log() // eslint-disable-line
 
-    console.log(`  ${log}`) // eslint-disable-line
+    console.log(`  ${msg}`) // eslint-disable-line
 
     // Put cursor to starting position for next view
     process.stdout.write(ansiEscapes.cursorLeft)
   }
 
-  renderWarning(warning, entity) {
-    // If no argument, skip
-    if (!warning || warning === '') {
+  renderDebug(msg) {
+    if (!this.debugMode || !msg || msg == '') {
       return
     }
 
@@ -256,14 +278,7 @@ class CLI {
     process.stdout.write(ansiEscapes.eraseDown)
     console.log() // eslint-disable-line
 
-    // Write warning
-    if (entity) {
-      entity = `${yellow(entity)} ${yellow(figures.pointerSmall)} ${yellow(`Warning:`)}`
-      console.log(`  ${entity}`) // eslint-disable-line
-    } else {
-      console.log(` ${yellow('warning:')}`) // eslint-disable-line
-    }
-    console.log(` `, warning) // eslint-disable-line
+    console.log(`  ${yellow('DEBUG:')} ${bold(msg)}`) // eslint-disable-line
 
     // Put cursor to starting position for next view
     process.stdout.write(ansiEscapes.cursorLeft)
@@ -292,56 +307,16 @@ class CLI {
     process.stdout.write(ansiEscapes.cursorLeft)
   }
 
-  renderOutputs(outputs, entity) {
-    // If no argument, skip
-    if (!outputs || !Object.keys(outputs).length) {
-      return
-    }
-
-    // Clear any existing content
-    process.stdout.write(ansiEscapes.eraseDown)
-    console.log() // eslint-disable-line
-
-    // Write Outputs
-    if (entity) {
-      entity = `${green(entity)} ${green(figures.pointerSmall)} ${green(`outputs:`)}`
-      console.log(`  ${entity}`) // eslint-disable-line
-    } else {
-      console.log(`  ${green('outputs:')}`) // eslint-disable-line
-    }
-
-    for (const output in outputs) {
-      // If nested object, pretty-print at least one level to help readability
-      if (!!outputs[output] && outputs[output].constructor === Object) {
-        const nextOutputs = outputs[output]
-        console.log(`  ${grey(output + ':')} `) // eslint-disable-line
-        for (const nextOutput in nextOutputs) {
-          // eslint-disable-next-line
-          console.log(
-            `    ${grey(nextOutput + ':')} `,
-            util.inspect(nextOutputs[nextOutput], { colors: false })
-          )
-        }
-      } else {
-        // eslint-disable-next-line
-        console.log(`  ${grey(output + ':')} `, util.inspect(outputs[output], { colors: false }))
-      }
-    }
-
-    // Put cursor to starting position for next view
-    process.stdout.write(ansiEscapes.cursorLeft)
-  }
-
   renderOutput(key, value) {
     // If no argument, skip
     if (!key || !value) {
-      console.log()
+      console.log() // eslint-disable-line
       return
     }
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
 
-    console.log(`  ${bold(key + ':')} ${value}`)
+    console.log(`  ${bold(key + ':')} ${value}`) // eslint-disable-line
   }
 
   // basic CLI utilities
@@ -349,12 +324,12 @@ class CLI {
     this.renderLog(msg)
   }
 
-  status(verbose, status, entity) {
-    this.renderStatus(verbose, status, entity)
+  status(status, entity) {
+    this.renderStatus(status, entity)
   }
 
-  warn(warning, entity) {
-    this.renderWarning(warning, entity)
+  debug(msg) {
+    this.renderDebug(msg)
   }
 
   error(error, entity) {
@@ -368,67 +343,6 @@ class CLI {
   output(key, value) {
     this.outputs[key] = value
     this.renderOutput(key, value)
-  }
-
-  async readState(id) {
-    const stateFilePath = path.join(this.stateRoot, `${id}.json`)
-    let state = {
-      resourceGroupId: this.resourceGroupId
-    }
-    if ((await utils.fileExists(stateFilePath)) && (await utils.readFile(stateFilePath)).resourceGroupId) {
-      state = await utils.readFile(stateFilePath)
-      this.resourceGroupId = state.resourceGroupId
-    } else {
-      await this.writeState(id, state)
-    }
-
-    return state
-  }
-
-  async writeState(id, state) {
-    const stateFilePath = path.join(this.stateRoot, `${id}.json`)
-    await utils.writeFile(stateFilePath, state)
-    return state
-  }
-
-  async setCredentials() {
-    // Load env vars
-    let envVars = {}
-    const defaultEnvFilePath = path.join(this.root, `.env`)
-    const stageEnvFilePath = path.join(this.root, `.env.dev`) // todo remove this
-    if (await utils.fileExists(stageEnvFilePath)) {
-      envVars = dotenv.config({ path: path.resolve(stageEnvFilePath) }).parsed || {}
-    } else if (await utils.fileExists(defaultEnvFilePath)) {
-      envVars = dotenv.config({ path: path.resolve(defaultEnvFilePath) }).parsed || {}
-    }
-
-    // Known Provider Environment Variables and their SDK configuration properties
-    const providers = {}
-
-    // AWS
-    providers.aws = {}
-    providers.aws.AWS_ACCESS_KEY_ID = 'accessKeyId'
-    providers.aws.AWS_SECRET_ACCESS_KEY = 'secretAccessKey'
-    providers.aws.AWS_REGION = 'region'
-
-    const credentials = {}
-
-    for (const provider in providers) {
-      const providerEnvVars = providers[provider]
-      for (const providerEnvVar in providerEnvVars) {
-        if (!envVars.hasOwnProperty(providerEnvVar)) {
-          continue
-        }
-        if (!credentials[provider]) {
-          credentials[provider] = {}
-        }
-        credentials[provider][providerEnvVars[providerEnvVar]] = envVars[providerEnvVar]
-      }
-    }
-
-    this.credentials = credentials
-
-    return credentials
   }
 }
 
