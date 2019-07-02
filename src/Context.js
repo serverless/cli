@@ -5,6 +5,7 @@ const stripAnsi = require('strip-ansi')
 const figures = require('figures')
 const dotenv = require('dotenv')
 const path = require('path')
+const prettyoutput = require('prettyoutput')
 const { utils } = require('@serverless/core')
 
 // Serverless Components CLI Colors
@@ -22,10 +23,12 @@ class CLI {
       : path.join(this.root, '.serverless')
     this.credentials = config.credentials || {}
     this.debugMode = config.debug || false
-    this.outputs = {}
     this.resourceGroupId = Math.random()
       .toString(36)
       .substring(6)
+
+    // todo remove later when we update components
+    this.outputs = {}
 
     // Defaults
     this._ = {}
@@ -43,7 +46,7 @@ class CLI {
     process.stdout.write(ansiEscapes.cursorHide)
 
     // Event Handler: Control + C
-    process.on('SIGINT', async function() {
+    process.on('SIGINT', async () => {
       if (this.isStatusEngineActive()) {
         return this.statusEngineStop('cancel')
       }
@@ -152,6 +155,7 @@ class CLI {
   }
 
   statusEngineStart() {
+    this.log()
     this._.status.running = true
     // Start Status engine
     return this.statusEngine()
@@ -276,7 +280,6 @@ class CLI {
 
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
-    console.log() // eslint-disable-line
 
     console.log(`  ${yellow('DEBUG:')} ${bold(msg)}`) // eslint-disable-line
 
@@ -285,6 +288,10 @@ class CLI {
   }
 
   renderError(error, entity) {
+    if (typeof error === 'string') {
+      error = new Error(error)
+    }
+
     // If no argument, skip
     if (!error || error === '') {
       return
@@ -307,16 +314,16 @@ class CLI {
     process.stdout.write(ansiEscapes.cursorLeft)
   }
 
-  renderOutput(key, value) {
+  renderOutputs(outputs) {
     // If no argument, skip
-    if (!key || !value) {
-      console.log() // eslint-disable-line
+    if (!outputs || (typeof outputs === 'object' && Object.keys(outputs).length === 0)) {
       return
     }
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
 
-    console.log(`  ${bold(key + ':')} ${value}`) // eslint-disable-line
+    console.log() // eslint-disable-line
+    console.log(prettyoutput(outputs, {}, 2)) // eslint-disable-line
   }
 
   // basic CLI utilities
@@ -324,26 +331,16 @@ class CLI {
     this.renderLog(msg)
   }
 
-  status(status, entity) {
-    this.renderStatus(status, entity)
-  }
-
   debug(msg) {
     this.renderDebug(msg)
   }
 
-  error(error, entity) {
-    if (typeof error === 'string') {
-      error = new Error(error)
-    }
-    this.renderError(error, entity)
-    this.close('error', error)
+  status(status, entity) {
+    this.renderStatus(status, entity)
   }
 
-  output(key, value) {
-    this.outputs[key] = value
-    this.renderOutput(key, value)
-  }
+  // todo remove
+  output() {}
 }
 
 module.exports = CLI
