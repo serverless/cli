@@ -21,11 +21,11 @@ class CLI {
     this.stateRoot = config.stateRoot
       ? path.resolve(config.stateRoot)
       : path.join(this.root, '.serverless')
+
     this.credentials = config.credentials || {}
     this.debugMode = config.debug || false
-    this.resourceGroupId = Math.random()
-      .toString(36)
-      .substring(6)
+    this.state = { id: utils.randomId() }
+    this.id = this.state.id
 
     // todo remove later when we update components
     this.outputs = {}
@@ -59,22 +59,29 @@ class CLI {
     }, 1000)
   }
 
+  async init() {
+    const contextStatePath = path.join(this.stateRoot, `Context.json`)
+
+    if (await utils.fileExists(contextStatePath)) {
+      this.state = await utils.readFile(contextStatePath)
+    } else {
+      await utils.writeFile(contextStatePath, this.state)
+    }
+    this.id = this.state.id
+
+    await this.setCredentials()
+  }
+
+  resourceId() {
+    return `${this.id}-${utils.randomId()}`
+  }
+
   async readState(id) {
     const stateFilePath = path.join(this.stateRoot, `${id}.json`)
-    let state = {
-      resourceGroupId: this.resourceGroupId
+    if (await utils.fileExists(stateFilePath)) {
+      return utils.readFile(stateFilePath)
     }
-    if (
-      (await utils.fileExists(stateFilePath)) &&
-      (await utils.readFile(stateFilePath)).resourceGroupId
-    ) {
-      state = await utils.readFile(stateFilePath)
-      this.resourceGroupId = state.resourceGroupId
-    } else {
-      await this.writeState(id, state)
-    }
-
-    return state
+    return {}
   }
 
   async writeState(id, state) {

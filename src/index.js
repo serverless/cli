@@ -84,8 +84,6 @@ const runComponents = async () => {
   const context = new Context(config)
 
   try {
-    await context.setCredentials()
-
     const component = new Component(undefined, context)
     await component.init()
 
