@@ -142,7 +142,7 @@ class CLI {
   }
 
   getRelativeVerticalCursorPosition(contentString) {
-    const base = 2
+    const base = 1
     const terminalWidth = process.stdout.columns
     const contentWidth = stripAnsi(contentString).length
     const nudges = Math.ceil(Number(contentWidth) / Number(terminalWidth))
@@ -184,7 +184,6 @@ class CLI {
     // Clear any existing content
     process.stdout.write(ansiEscapes.cursorLeft)
     process.stdout.write(ansiEscapes.eraseDown)
-    console.log(os.EOL) // eslint-disable-line
 
     // Write content
     let content = ' '
@@ -243,7 +242,7 @@ class CLI {
     process.stdout.write(ansiEscapes.eraseDown)
 
     // Write content
-    console.log(os.EOL) // eslint-disable-line
+    console.log() // eslint-disable-line
     let content = ' '
     if (this._.useTimer) {
       content += ` ${grey(this._.seconds + 's')}`
