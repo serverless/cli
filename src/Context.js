@@ -60,7 +60,7 @@ class CLI {
   }
 
   async init() {
-    const contextStatePath = path.join(this.stateRoot, `Context.json`)
+    const contextStatePath = path.join(this.stateRoot, `_.json`)
 
     if (await utils.fileExists(contextStatePath)) {
       this.state = await utils.readFile(contextStatePath)
@@ -321,15 +321,13 @@ class CLI {
   }
 
   renderOutputs(outputs) {
-    // If no argument, skip
-    if (!outputs || (typeof outputs === 'object' && Object.keys(outputs).length === 0)) {
-      return
-    }
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
-
     console.log() // eslint-disable-line
-    console.log(prettyoutput(outputs, {}, 2)) // eslint-disable-line
+
+    if (typeof outputs === 'object' && Object.keys(outputs).length !== 0) {
+      console.log(prettyoutput(outputs, {}, 2)) // eslint-disable-line
+    }
   }
 
   // basic CLI utilities

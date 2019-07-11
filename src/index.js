@@ -86,17 +86,18 @@ const runComponents = async () => {
   try {
     const component = new Component(undefined, context)
     await component.init()
+    let outputs
 
     if (method) {
       if (typeof component[method] !== 'function') {
         throw Error(`  method ${method} not found`)
       }
-      await component[method](inputs)
+      outputs = await component[method](inputs)
     } else {
-      const outputs = await component(inputs)
-
-      context.renderOutputs(outputs)
+      outputs = await component(inputs)
     }
+
+    context.renderOutputs(outputs)
     context.close('done')
     process.exit(0)
   } catch (e) {
