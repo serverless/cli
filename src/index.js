@@ -30,8 +30,14 @@ const isComponentsTemplate = (serverlessFile) => {
     return false
   }
 
+  // make sure it's NOT a framework file
+  if (serverlessFile.provider && serverlessFile.provider.name) {
+    return false
+  }
+
+  // make sure it IS a components file
   for (const key in serverlessFile) {
-    if (serverlessFile[key].component) {
+    if (serverlessFile[key] && serverlessFile[key].component) {
       return true
     }
   }
