@@ -11,9 +11,7 @@ const { utils } = require('@serverless/core')
 // Serverless Components CLI Colors
 const grey = chalk.dim
 const green = chalk.rgb(0, 253, 88)
-const yellow = chalk.rgb(255, 242, 129)
 const red = chalk.rgb(255, 93, 93)
-const { bold } = chalk.gray
 
 class CLI {
   constructor(config) {
@@ -162,7 +160,9 @@ class CLI {
   }
 
   statusEngineStart() {
-    this.log()
+    if (this.debugMode) {
+      this.log()
+    }
     this._.status.running = true
     // Start Status engine
     return this.statusEngine()
@@ -186,6 +186,7 @@ class CLI {
     process.stdout.write(ansiEscapes.eraseDown)
 
     // Write content
+    this.log()
     let content = ' '
     if (this._.useTimer) {
       content += ` ${grey(this._.seconds + 's')}`
@@ -287,7 +288,7 @@ class CLI {
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
 
-    console.log(`  ${yellow('DEBUG:')} ${bold(msg)}`) // eslint-disable-line
+    console.log(`  ${grey.bold(`DEBUG ${figures.line}`)} ${chalk.white(msg)}`) // eslint-disable-line
 
     // Put cursor to starting position for next view
     process.stdout.write(ansiEscapes.cursorLeft)
@@ -326,7 +327,7 @@ class CLI {
     console.log() // eslint-disable-line
 
     if (typeof outputs === 'object' && Object.keys(outputs).length !== 0) {
-      console.log(prettyoutput(outputs, {}, 2)) // eslint-disable-line
+      process.stdout.write(prettyoutput(outputs, {}, 2)) // eslint-disable-line
     }
   }
 
