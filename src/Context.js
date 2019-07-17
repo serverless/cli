@@ -322,13 +322,13 @@ class CLI {
   }
 
   renderOutputs(outputs) {
+    if (typeof outputs !== 'object' || Object.keys(outputs).length === 0) {
+      return
+    }
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
     console.log() // eslint-disable-line
-
-    if (typeof outputs === 'object' && Object.keys(outputs).length !== 0) {
-      process.stdout.write(prettyoutput(outputs, {}, 2)) // eslint-disable-line
-    }
+    process.stdout.write(prettyoutput(outputs, {}, 2)) // eslint-disable-line
   }
 
   // basic CLI utilities
