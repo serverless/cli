@@ -1,6 +1,6 @@
 {
   "name": "@serverless/cli",
-  "version": "0.1.24",
+  "version": "1.0.0",
   "description": "Serverless Components CLI",
   "main": "./src/index.js",
   "bin": {
@@ -16,8 +16,8 @@
   "author": "Serverless, Inc.",
   "license": "MIT",
   "dependencies": {
-    "@serverless/core": "^0.1.0",
-    "@serverless/template": "^0.1.0",
+    "@serverless/core": "^1.0.0",
+    "@serverless/template": "^1.0.0",
     "ansi-escapes": "^4.2.0",
     "chalk": "^2.4.2",
     "dotenv": "^8.0.0",
