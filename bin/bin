@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { runComponents } = require('../src')
+const { runComponents, runningComponents } = require('../src')
 
 // todo move to utils or CLI
 // Set config from CLI input

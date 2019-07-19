@@ -12,12 +12,24 @@ const getServerlessFile = (dir) => {
   if (utils.fileExistsSync(jsFilePath)) {
     return require(jsFilePath)
   }
-  if (utils.fileExistsSync(ymlFilePath)) {
-    return utils.readFileSync(ymlFilePath)
+
+  try {
+    if (utils.fileExistsSync(ymlFilePath)) {
+      return utils.readFileSync(ymlFilePath)
+    }
+    if (utils.fileExistsSync(yamlFilePath)) {
+      return utils.readFileSync(yamlFilePath)
+    }
+  } catch (e) {
+    // todo currently our YAML parser does not support
+    // CF schema (!Ref for example). So we silent that error
+    // because the framework can deal with that
+    if (e.name !== 'YAMLException') {
+      throw e
+    }
+    return false
   }
-  if (utils.fileExistsSync(yamlFilePath)) {
-    return utils.readFileSync(yamlFilePath)
-  }
+
   if (utils.fileExistsSync(jsonFilePath)) {
     return utils.readFileSync(jsonFilePath)
   }
