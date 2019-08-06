@@ -7,6 +7,7 @@ const dotenv = require('dotenv')
 const path = require('path')
 const prettyoutput = require('prettyoutput')
 const { utils } = require('@serverless/core')
+const packageJson = require('../package.json')
 
 // Serverless Components CLI Colors
 const grey = chalk.dim
@@ -15,6 +16,7 @@ const red = chalk.rgb(255, 93, 93)
 
 class CLI {
   constructor(config) {
+    this.version = packageJson.version
     this.root = path.resolve(config.root) || process.cwd()
     this.stateRoot = config.stateRoot
       ? path.resolve(config.stateRoot)
