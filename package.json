@@ -20,9 +20,10 @@
     "@serverless/template": "^1.0.2",
     "ansi-escapes": "^4.2.0",
     "chalk": "^2.4.2",
-    "dotenv": "^8.0.0",
+    "dotenv": "^8.1.0",
     "figures": "^3.0.0",
     "minimist": "^1.2.0",
+    "node-fetch": "^2.6.0",
     "prettyoutput": "^1.2.0",
     "strip-ansi": "^5.2.0"
   },

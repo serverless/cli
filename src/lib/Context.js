@@ -7,14 +7,14 @@ const dotenv = require('dotenv')
 const path = require('path')
 const prettyoutput = require('prettyoutput')
 const { utils } = require('@serverless/core')
-const packageJson = require('../package.json')
+const packageJson = require('../../package.json')
 
 // Serverless Components CLI Colors
 const grey = chalk.dim
 const green = chalk.rgb(0, 253, 88)
 const red = chalk.rgb(255, 93, 93)
 
-class CLI {
+class Context {
   constructor(config) {
     this.version = packageJson.version
     this.root = path.resolve(config.root) || process.cwd()
@@ -333,7 +333,7 @@ class CLI {
     process.stdout.write(prettyoutput(outputs, {}, 2)) // eslint-disable-line
   }
 
-  // basic CLI utilities
+  // basic Context utilities
   log(msg) {
     this.renderLog(msg)
   }
@@ -350,4 +350,4 @@ class CLI {
   output() {}
 }
 
-module.exports = CLI
+module.exports = Context
