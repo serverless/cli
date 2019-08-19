@@ -20,7 +20,6 @@ colors.red = chalk.rgb(255, 93, 93)
  */
 
 const close = (reason, message) => {
-
   if (reason === 'error') {
     message = colors.red(message)
   }
@@ -42,7 +41,16 @@ const close = (reason, message) => {
   }
 }
 
+const log = (message, color) => {
+  if (color) {
+    message = colors[color](message)
+  }
+
+  process.stdout.write(`${message}\n`)
+}
+
 module.exports = {
   colors,
   close,
+  log
 }

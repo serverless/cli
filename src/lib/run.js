@@ -7,12 +7,7 @@ const path = require('path')
 const Context = require('./Context')
 const utils = require('../utils')
 
-module.exports = async (
-  serverlessFile,
-  method,
-  inputs,
-) => {
-
+module.exports = async (serverlessFile, method, inputs) => {
   let Component
   if (utils.fs.isComponentsTemplate(serverlessFile)) {
     Component = require('@serverless/template')

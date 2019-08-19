@@ -7,17 +7,31 @@ const path = require('path')
 const fs = require('fs')
 const fetch = require('node-fetch')
 const utils = require('../utils')
+const { promisify } = require('util')
+const platformSdk = require('@serverless/platform-sdk')
+const exec = promisify(require('child_process').exec)
 
 const registryAPI = 'https://rl9hc5i1w2.execute-api.us-east-1.amazonaws.com/production/'
 
 const publish = async (inputs) => {
+  const user = platformSdk.getLoggedInUser()
 
-  let pathPackageJson = path.join(process.cwd(), 'package.json')
-  let pathReadme = path.join(process.cwd(), 'README.md')
+  if (!user) {
+    utils.cli.close(
+      'error',
+      'Please login to the Serverless Dashboard to publish your component. Just run "sls login".'
+    )
+  }
+
+  const pathPackageJson = path.join(process.cwd(), 'package.json')
+  const pathReadme = path.join(process.cwd(), 'README.md')
 
   // Check files exist
   if (!fs.existsSync(pathPackageJson)) {
-    utils.cli.close(`error`, `A "package.json" file was not found in the current directory and is required.`)
+    utils.cli.close(
+      `error`,
+      `A "package.json" file was not found in the current directory and is required.`
+    )
   }
 
   // Load
@@ -25,11 +39,23 @@ const publish = async (inputs) => {
 
   // Validate
   if (packageJSON.name.includes('@') || packageJSON.name.includes('/')) {
-    utils.cli.close(`error`, `To publish to the Serverless Registry, your Component name cannot include the characters "@" or "/", which come from your npm organization.  Instead, add a custom name by adding a "serverless" object with a "name" property to "package.json", like - 'serverless': { 'name': 'website' }`)
+    utils.cli.close(
+      `error`,
+      `To publish to the Serverless Registry, your Component name cannot include the characters "@" or "/", which come from your npm organization.  Instead, add a custom name by adding a "serverless" object with a "name" property to "package.json", like - 'serverless': { 'name': 'website' }`
+    )
   }
-  if (packageJSON.publishConfig && packageJSON.publishConfig.access && packageJSON.publishConfig.access !== 'public') {
-    utils.cli.close(`error`, `"publishConfig.access" must be set to "public" in "package.json" in order to publish to the Serverless Components Registry.`)
+  if (
+    packageJSON.publishConfig &&
+    packageJSON.publishConfig.access &&
+    packageJSON.publishConfig.access !== 'public'
+  ) {
+    utils.cli.close(
+      `error`,
+      `"publishConfig.access" must be set to "public" in "package.json" in order to publish to the Serverless Components Registry.`
+    )
   }
+
+  await exec(`npm publish`)
 
   // Optionally load README.md
   let readme
@@ -37,6 +63,7 @@ const publish = async (inputs) => {
     readme = fs.readFileSync(pathReadme, 'utf-8')
   }
 
+  // todo we may want to send over user data as well
   // Create Data Object
   const data = {}
   data.name = packageJSON.name
@@ -51,8 +78,8 @@ const publish = async (inputs) => {
 
   let response = await fetch(`${registryAPI}/api/v1/component`, {
     method: 'post',
-    body:    JSON.stringify(data),
-    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' }
   })
 
   if (response.status && response.status !== 200) {
@@ -69,9 +96,8 @@ const publish = async (inputs) => {
  */
 
 const unpublish = async (inputs) => {
-
-  let pathPackageJson = path.join(process.cwd(), 'package.json')
-  let pathReadme = path.join(process.cwd(), 'README.md')
+  const pathPackageJson = path.join(process.cwd(), 'package.json')
+  const pathReadme = path.join(process.cwd(), 'README.md')
 
   // Check files exist
   if (!fs.existsSync(pathPackageJson)) {
@@ -81,10 +107,13 @@ const unpublish = async (inputs) => {
   // Load
   const packageJSON = require(pathPackageJson)
 
-  let response = await fetch(`${registryAPI}/api/v1/component?componentName=${packageJSON.name}&componentVersion=${packageJSON.version}`, {
-    method: 'delete',
-    headers: { 'Content-Type': 'application/json' },
-  })
+  let response = await fetch(
+    `${registryAPI}/api/v1/component?componentName=${packageJSON.name}&componentVersion=${packageJSON.version}`,
+    {
+      method: 'delete',
+      headers: { 'Content-Type': 'application/json' }
+    }
+  )
 
   if (response.status && response.status !== 200) {
     response = await response.json()
@@ -97,5 +126,5 @@ const unpublish = async (inputs) => {
 
 module.exports = {
   publish,
-  unpublish,
+  unpublish
 }

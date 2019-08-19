@@ -10,39 +10,39 @@ const { utils } = require('@serverless/core')
  * - Checks the dir for the different types of serverless files
  */
 
- const getServerlessFile = (dir) => {
-   const jsFilePath = path.join(dir, 'serverless.js')
-   const ymlFilePath = path.join(dir, 'serverless.yml')
-   const yamlFilePath = path.join(dir, 'serverless.yaml')
-   const jsonFilePath = path.join(dir, 'serverless.json')
+const getServerlessFile = (dir) => {
+  const jsFilePath = path.join(dir, 'serverless.js')
+  const ymlFilePath = path.join(dir, 'serverless.yml')
+  const yamlFilePath = path.join(dir, 'serverless.yaml')
+  const jsonFilePath = path.join(dir, 'serverless.json')
 
-   if (utils.fileExistsSync(jsFilePath)) {
-     return require(jsFilePath)
-   }
+  if (utils.fileExistsSync(jsFilePath)) {
+    return require(jsFilePath)
+  }
 
-   try {
-     if (utils.fileExistsSync(ymlFilePath)) {
-       return utils.readFileSync(ymlFilePath)
-     }
-     if (utils.fileExistsSync(yamlFilePath)) {
-       return utils.readFileSync(yamlFilePath)
-     }
-   } catch (e) {
-     // todo currently our YAML parser does not support
-     // CF schema (!Ref for example). So we silent that error
-     // because the framework can deal with that
-     if (e.name !== 'YAMLException') {
-       throw e
-     }
-     return false
-   }
+  try {
+    if (utils.fileExistsSync(ymlFilePath)) {
+      return utils.readFileSync(ymlFilePath)
+    }
+    if (utils.fileExistsSync(yamlFilePath)) {
+      return utils.readFileSync(yamlFilePath)
+    }
+  } catch (e) {
+    // todo currently our YAML parser does not support
+    // CF schema (!Ref for example). So we silent that error
+    // because the framework can deal with that
+    if (e.name !== 'YAMLException') {
+      throw e
+    }
+    return false
+  }
 
-   if (utils.fileExistsSync(jsonFilePath)) {
-     return utils.readFileSync(jsonFilePath)
-   }
+  if (utils.fileExistsSync(jsonFilePath)) {
+    return utils.readFileSync(jsonFilePath)
+  }
 
-   return false
- }
+  return false
+}
 
 /**
  * Is Component File
@@ -60,29 +60,28 @@ const isComponentsFile = (serverlessFile) => {
  * - Checks the serverless.yml and ensures it's a Serverless Component
  */
 
- const isComponentsTemplate = (serverlessFile) => {
-   if (typeof serverlessFile !== 'object') {
-     return false
-   }
+const isComponentsTemplate = (serverlessFile) => {
+  if (typeof serverlessFile !== 'object') {
+    return false
+  }
 
-   // make sure it's NOT a framework file
-   if (serverlessFile.provider && serverlessFile.provider.name) {
-     return false
-   }
+  // make sure it's NOT a framework file
+  if (serverlessFile.provider && serverlessFile.provider.name) {
+    return false
+  }
 
-   // make sure it IS a components file
-   for (const key in serverlessFile) {
-     if (serverlessFile[key] && serverlessFile[key].component) {
-       return true
-     }
-   }
+  // make sure it IS a components file
+  for (const key in serverlessFile) {
+    if (serverlessFile[key] && serverlessFile[key].component) {
+      return true
+    }
+  }
 
-   return false
- }
+  return false
+}
 
-
- module.exports = {
-   getServerlessFile,
-   isComponentsFile,
-   isComponentsTemplate,
- }
+module.exports = {
+  getServerlessFile,
+  isComponentsFile,
+  isComponentsTemplate
+}

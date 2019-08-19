@@ -40,12 +40,12 @@ const runComponents = async () => {
       return await lib.publish(inputs)
     case 'unpublish':
       return await lib.unpublish(inputs)
+    case 'login':
+      return await lib.login(inputs)
+    case 'logout':
+      return await lib.logout(inputs)
     default:
-      return await lib.run(
-        serverlessFile,
-        method,
-        inputs,
-      )
+      return await lib.run(serverlessFile, method, inputs)
   }
 }
 
