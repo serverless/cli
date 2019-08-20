@@ -38,12 +38,6 @@ const publish = async (inputs) => {
   const packageJSON = require(pathPackageJson)
 
   // Validate
-  if (packageJSON.name.includes('@') || packageJSON.name.includes('/')) {
-    utils.cli.close(
-      `error`,
-      `To publish to the Serverless Registry, your Component name cannot include the characters "@" or "/", which come from your npm organization.  Instead, add a custom name by adding a "serverless" object with a "name" property to "package.json", like - 'serverless': { 'name': 'website' }`
-    )
-  }
   if (
     packageJSON.publishConfig &&
     packageJSON.publishConfig.access &&
@@ -55,7 +49,7 @@ const publish = async (inputs) => {
     )
   }
 
-  await exec(`npm publish`)
+  // await exec(`npm publish`)
 
   // Optionally load README.md
   let readme
@@ -73,7 +67,6 @@ const publish = async (inputs) => {
   data.keywords = packageJSON.keywords
   data.homepage = packageJSON.homepage
   data.license = packageJSON.license
-
   data.readme = readme
 
   let response = await fetch(`${registryAPI}/api/v1/component`, {
