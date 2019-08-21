@@ -74,8 +74,8 @@ const runningComponents = () => {
   return false
 }
 
-const runComponents = async () => {
-  const serverlessFile = getServerlessFile(process.cwd())
+const runComponents = async (serverlessFileArg) => {
+  const serverlessFile = serverlessFileArg || getServerlessFile(process.cwd())
 
   if (!serverlessFile || !isComponentsFile(serverlessFile)) {
     return
