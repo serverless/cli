@@ -110,6 +110,10 @@ class CLI {
     providers.aws.AWS_SECRET_ACCESS_KEY = 'secretAccessKey'
     providers.aws.AWS_REGION = 'region'
 
+    // Google
+    providers.google = {}
+    providers.google.GOOGLE_APPLICATION_CREDENTIALS = 'applicationCredentials'
+
     const credentials = {}
 
     for (const provider in providers) {
