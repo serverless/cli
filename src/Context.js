@@ -113,6 +113,9 @@ class CLI {
     // Google
     providers.google = {}
     providers.google.GOOGLE_APPLICATION_CREDENTIALS = 'applicationCredentials'
+    providers.google.GOOGLE_PROJECT_ID = 'projectId'
+    providers.google.GOOGLE_CLIENT_EMAIL = 'clientEmail'
+    providers.google.GOOGLE_PRIVATE_KEY = 'privateKey'
 
     const credentials = {}
 
