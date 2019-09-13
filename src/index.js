@@ -1,4 +1,5 @@
 const path = require('path')
+const chokidar = require('chokidar')
 const args = require('minimist')(process.argv.slice(2))
 const { utils } = require('@serverless/core')
 const Context = require('./Context')
@@ -74,6 +75,54 @@ const runningComponents = () => {
   return false
 }
 
+const watch = (component, inputs, method) => {
+  // TODO watching changes in a local serverless.js file
+  // requires reloading the file
+  let isProcessing = false
+  let queuedOperation = false
+  let outputs
+  const directory = process.cwd()
+  const watcher = chokidar.watch(directory, { ignored: /\.serverless/ })
+
+  watcher.on('ready', () => {
+    component.context.status('Watching')
+  })
+
+  watcher.on('change', async () => {
+    try {
+      if (isProcessing && !queuedOperation) {
+        queuedOperation = true
+      } else if (!isProcessing) {
+        // perform operation
+        isProcessing = true
+
+        if (method) {
+          outputs = await component[method](inputs)
+        } else {
+          outputs = await component(inputs)
+        }
+        // check if another operation is queued
+        if (queuedOperation) {
+          if (method) {
+            outputs = await component[method](inputs)
+          } else {
+            outputs = await component(inputs)
+          }
+        }
+        // reset everything
+        isProcessing = false
+        queuedOperation = false
+        component.context.instance.renderOutputs(outputs)
+        component.context.status('Watching')
+      }
+    } catch (e) {
+      component.context.instance.renderError(e)
+      component.context.close('error', e)
+      process.exit(1)
+    }
+  })
+}
+
 const runComponents = async (serverlessFileArg) => {
   const serverlessFile = serverlessFileArg || getServerlessFile(process.cwd())
 
@@ -104,6 +153,11 @@ const runComponents = async (serverlessFileArg) => {
   try {
     const component = new Component(undefined, context)
     await component.init()
+
+    if (inputs.watch) {
+      return watch(component, inputs, method)
+    }
+
     let outputs
 
     if (method) {
