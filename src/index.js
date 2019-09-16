@@ -11,6 +11,7 @@ const getServerlessFile = (dir) => {
   const jsonFilePath = path.join(dir, 'serverless.json')
 
   if (utils.fileExistsSync(jsFilePath)) {
+    delete require.cache[require.resolve(jsFilePath)]
     return require(jsFilePath)
   }
 
@@ -75,16 +76,20 @@ const runningComponents = () => {
   return false
 }
 
-const watch = (component, inputs, method) => {
-  // TODO watching changes in a local serverless.js file
-  // requires reloading the file
+const watch = (component, inputs, method, context) => {
   let isProcessing = false
   let queuedOperation = false
   let outputs
   const directory = process.cwd()
   const watcher = chokidar.watch(directory, { ignored: /\.serverless/ })
 
-  watcher.on('ready', () => {
+  watcher.on('ready', async () => {
+    if (method) {
+      outputs = await component[method](inputs)
+    } else {
+      outputs = await component(inputs)
+    }
+    component.context.instance.renderOutputs(outputs)
     component.context.status('Watching')
   })
 
@@ -95,6 +100,19 @@ const watch = (component, inputs, method) => {
       } else if (!isProcessing) {
         // perform operation
         isProcessing = true
+
+        const serverlessFile = getServerlessFile(process.cwd())
+
+        let Component
+        if (isComponentsTemplate(serverlessFile)) {
+          Component = require('@serverless/template')
+          inputs.template = serverlessFile
+        } else {
+          Component = serverlessFile
+        }
+
+        component = new Component(undefined, context)
+        await component.init()
 
         if (method) {
           outputs = await component[method](inputs)
@@ -155,7 +173,8 @@ const runComponents = async (serverlessFileArg) => {
     await component.init()
 
     if (inputs.watch) {
-      return watch(component, inputs, method)
+      delete inputs.watch // remove it so that it doesn't pass as an input
+      return watch(component, inputs, method, context)
     }
 
     let outputs

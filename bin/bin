@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 
-const { runComponents, runningComponents } = require('../src')
-
-// todo move to utils or CLI
-// Set config from CLI input
+const { runComponents } = require('../src')
 
 // Run
 ;(async () => {
