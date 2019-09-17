@@ -81,19 +81,33 @@ const watch = (component, inputs, method, context) => {
   let queuedOperation = false
   let outputs
   const directory = process.cwd()
+  const directoryName = path.basename(directory)
   const watcher = chokidar.watch(directory, { ignored: /\.serverless/ })
 
   watcher.on('ready', async () => {
-    if (method) {
-      outputs = await component[method](inputs)
-    } else {
-      outputs = await component(inputs)
-    }
-    component.context.instance.renderOutputs(outputs)
-    component.context.status('Watching')
+    component.context.instance._.useTimer = false
+    component.context.instance.renderStatus('Watching', directoryName)
+
+    // UNCOMMENT if we wanna start with deployment before watching
+
+    // try {
+    //   if (method) {
+    //     outputs = await component[method](inputs)
+    //   } else {
+    //     outputs = await component(inputs)
+    //   }
+    //   component.context.instance.renderOutputs(outputs)
+    //   component.context.instance._.useTimer = false
+    //   component.context.instance.renderStatus('Watching', directoryName)
+    // } catch (e) {
+    //   component.context.instance.renderError(e)
+    //   component.context.instance._.useTimer = false
+    //   component.context.instance.renderStatus('Watching', directoryName)
+    // }
   })
 
   watcher.on('change', async () => {
+    component.context.instance._.useTimer = true
     try {
       if (isProcessing && !queuedOperation) {
         queuedOperation = true
@@ -114,6 +128,7 @@ const watch = (component, inputs, method, context) => {
         component = new Component(undefined, context)
         await component.init()
 
+        component.context.instance._.seconds = 0
         if (method) {
           outputs = await component[method](inputs)
         } else {
@@ -121,6 +136,7 @@ const watch = (component, inputs, method, context) => {
         }
         // check if another operation is queued
         if (queuedOperation) {
+          component.context.instance._.seconds = 0
           if (method) {
             outputs = await component[method](inputs)
           } else {
@@ -131,12 +147,16 @@ const watch = (component, inputs, method, context) => {
         isProcessing = false
         queuedOperation = false
         component.context.instance.renderOutputs(outputs)
-        component.context.status('Watching')
+
+        component.context.instance._.useTimer = false
+        component.context.instance.renderStatus('Watching', directoryName)
       }
     } catch (e) {
+      isProcessing = false
+      queuedOperation = false
       component.context.instance.renderError(e)
-      component.context.close('error', e)
-      process.exit(1)
+      component.context.instance._.useTimer = false
+      component.context.instance.renderStatus('Watching', directoryName)
     }
   })
 }
@@ -164,8 +184,9 @@ const runComponents = async (serverlessFileArg) => {
     root: process.cwd(),
     stateRoot: path.join(process.cwd(), '.serverless'),
     debug: inputs.debug,
-    entity: Component.constructor.name
+    entity: serverlessFile.name // either the name prop of the yaml, or class name of js
   }
+
   const context = new Context(config)
 
   try {
