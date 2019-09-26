@@ -2,6 +2,8 @@ const path = require('path')
 const chokidar = require('chokidar')
 const args = require('minimist')(process.argv.slice(2))
 const { utils } = require('@serverless/core')
+const cliVersion = require('../package.json').version
+const coreVersion = require('@serverless/core/package.json').version
 const Context = require('./Context')
 
 const getServerlessFile = (dir) => {
@@ -219,4 +221,4 @@ const runComponents = async (serverlessFileArg) => {
   }
 }
 
-module.exports = { runningComponents, runComponents }
+module.exports = { runningComponents, runComponents, cliVersion, coreVersion }
