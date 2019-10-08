@@ -33,6 +33,7 @@ class CLI {
     // Defaults
     this._ = {}
     this._.entity = 'Components'
+    this._.lastDebugTime = null
     this._.useTimer = true
     this._.seconds = 0
     // Status defaults
@@ -294,10 +295,21 @@ class CLI {
       return
     }
 
+    this.lastDebugTime = this.lastDebugTime || new Date()
+
+    const now = new Date()
+    const elapsedMs = now - this.lastDebugTime
+    const elapsedTimeSuffix =
+      elapsedMs > 1000
+        ? chalk.red(`(${Math.floor(elapsedMs / 1000)}s)`)
+        : grey.bold(`(${elapsedMs}ms)`)
+
+    this.lastDebugTime = now
+
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
 
-    console.log(`  ${grey.bold(`DEBUG ${figures.line}`)} ${chalk.white(msg)}`) // eslint-disable-line
+    console.log(`  ${grey.bold(`DEBUG ${figures.line}`)} ${chalk.white(msg)} ${elapsedTimeSuffix}`) // eslint-disable-line
 
     // Put cursor to starting position for next view
     process.stdout.write(ansiEscapes.cursorLeft)
