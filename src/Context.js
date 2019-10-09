@@ -295,16 +295,16 @@ class CLI {
       return
     }
 
-    this.lastDebugTime = this.lastDebugTime || new Date()
+    this._.lastDebugTime = this._.lastDebugTime || new Date()
 
     const now = new Date()
-    const elapsedMs = now - this.lastDebugTime
+    const elapsedMs = now - this._.lastDebugTime
     const elapsedTimeSuffix =
       elapsedMs > 1000
         ? chalk.red(`(${Math.floor(elapsedMs / 1000)}s)`)
         : grey.bold(`(${elapsedMs}ms)`)
 
-    this.lastDebugTime = now
+    this._.lastDebugTime = now
 
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
