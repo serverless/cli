@@ -119,8 +119,14 @@ class CLI {
 
     // Tencent
     providers.tencent = {}
-    providers.tencent.TENCENT_SECRET_ID = 'tencent_secret_id'
-    providers.tencent.TENCENT_SECRET_KEY = 'tencent_secret_key'
+    providers.tencent.TENCENT_APP_ID = 'AppId'
+    providers.tencent.TENCENT_SECRET_ID = 'SecretId'
+    providers.tencent.TENCENT_SECRET_KEY = 'SecretKey'
+
+    // Docker
+    providers.docker = {}
+    providers.docker.DOCKER_USERNAME = 'username'
+    providers.docker.DOCKER_PASSWORD = 'password'
 
     const credentials = {}
 
