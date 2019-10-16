@@ -119,7 +119,6 @@ class CLI {
 
     // Tencent
     providers.tencent = {}
-    providers.tencent.TENCENT_APPID = 'tencent_appid'
     providers.tencent.TENCENT_SECRET_ID = 'tencent_secret_id'
     providers.tencent.TENCENT_SECRET_KEY = 'tencent_secret_key'
 
