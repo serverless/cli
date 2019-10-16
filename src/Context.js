@@ -15,9 +15,9 @@ const green = chalk.rgb(0, 253, 88)
 const red = chalk.rgb(255, 93, 93)
 
 class CLI {
-  constructor(config) {
+  constructor(config = {}) {
     this.version = packageJson.version
-    this.root = path.resolve(config.root) || process.cwd()
+    this.root = config.root ? path.resolve(config.root) : process.cwd()
     this.stateRoot = config.stateRoot
       ? path.resolve(config.stateRoot)
       : path.join(this.root, '.serverless')
@@ -291,6 +291,7 @@ class CLI {
 
   renderDebug(msg) {
     if (!this.debugMode || !msg || msg == '') {
+      console.log('he,')
       return
     }
 

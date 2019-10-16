@@ -5,6 +5,13 @@ const { utils } = require('@serverless/core')
 const cliVersion = require('../package.json').version
 const coreVersion = require('@serverless/core/package.json').version
 const Context = require('./Context')
+const WebSocket = require('ws')
+const AWS = require('aws-sdk')
+const lambda = new AWS.Lambda()
+
+// opening connection takes ~1 second
+// debug statements take few miliseconds
+// no CDN
 
 const getServerlessFile = (dir) => {
   const jsFilePath = path.join(dir, 'serverless.js')
@@ -163,6 +170,125 @@ const watch = (component, inputs, method, context) => {
   })
 }
 
+// # LIMITS
+// # 1. code/file uploads (only 3 components supported)
+// # 2. 30 seconds max deployment time
+// # 3. no status reporting
+// # 4. global shared state. no serverless users integration.
+// # 5. unsecure.
+
+// # TODOS
+// # 1. add code/file processing
+// # 2. add websockets layer
+// # 3. integrate into our backend
+// # 4. secure lambdas
+// # 5. run in production infra
+const runCloudComponents = async (serverlessFile, componentMethod) => {
+  const url = 'wss://eoh2kfu9e5.execute-api.us-east-1.amazonaws.com/dev'
+  const ws = new WebSocket(url)
+  const { id, org, app, service, stage } = serverlessFile
+  const context = new Context({ debug: true }) // todo we may want to create our own context
+  await context.setCredentials() // don't want to .init() so that we don't create .serverless files
+  context.status('Deploying', serverlessFile.id)
+
+  const componentName = '@serverless/cloud'
+  const componentId = serverlessFile.id
+  const componentInputs = { template: serverlessFile }
+  const componentContext = { id, org, app, service, stage, credentials: context.credentials }
+
+  const inputs = {
+    componentName,
+    componentId,
+    componentMethod,
+    componentInputs,
+    componentContext
+  }
+
+  ws.on('open', () => {
+    const payload = {
+      action: '$default',
+      data: {
+        functionName: 'runComponent',
+        inputs
+      }
+    }
+    ws.send(JSON.stringify(payload))
+  })
+
+  ws.on('message', (message) => {
+    const messageObj = JSON.parse(message)
+    if (messageObj.action === 'debug') {
+      // console.log(messageObj.data)
+      context.debug(messageObj.data)
+    } else if (messageObj.action === 'outputs') {
+      context.renderOutputs(messageObj.data)
+      context.close('done')
+      process.exit(0)
+    } else {
+      console.log(message)
+    }
+  })
+
+  ws.on('close', () => {
+    context.close('closed')
+    process.exit(0)
+  })
+
+  ws.on('error', (e) => {
+    context.renderError(e)
+    context.close('error', e)
+    process.exit(1)
+  })
+}
+
+const runCloudComponentsDirectly = async (serverlessFile, componentMethod) => {
+  const { id, org, app, service, stage } = serverlessFile
+  const context = new Context({ debug: true }) // todo we may want to create our own context
+  await context.setCredentials() // don't want to .init() so that we don't create .serverless files
+  context.status('Deploying', serverlessFile.id)
+
+  const componentName = '@serverless/cloud'
+  const componentId = serverlessFile.id
+  const componentInputs = { template: serverlessFile }
+  const componentContext = { id, org, app, service, stage, credentials: context.credentials }
+
+  const inputs = {
+    componentName,
+    componentId,
+    componentMethod,
+    componentInputs,
+    componentContext
+  }
+
+  const payload = {
+    functionName: 'runComponent',
+    inputs
+  }
+
+  const invokeParams = {
+    FunctionName: 'sandbox',
+    InvocationType: 'RequestResponse',
+    LogType: 'None',
+    Payload: new Buffer.from(JSON.stringify(payload))
+  }
+
+  const res = await lambda.invoke(invokeParams).promise()
+
+  const resPayload = JSON.parse(res.Payload)
+
+  if (resPayload && resPayload.errorMessage) {
+    const error = new Error(resPayload.errorMessage)
+    error.code = resPayload.errorType
+    context.renderError(error)
+    context.close('error', error)
+    process.exit(1)
+  }
+  const outputs = resPayload
+  context.renderOutputs(outputs)
+  context.close('done')
+  process.exit(0)
+}
+
 const runComponents = async (serverlessFileArg) => {
   const serverlessFile = serverlessFileArg || getServerlessFile(process.cwd())
 
@@ -176,6 +302,10 @@ const runComponents = async (serverlessFileArg) => {
 
   let Component
   if (isComponentsTemplate(serverlessFile)) {
+    if (serverlessFile.id) {
+      // return runCloudComponentsDirectly(serverlessFile, method)
+      return runCloudComponents(serverlessFile, method)
+    }
     Component = require('@serverless/template')
     inputs.template = serverlessFile
   } else {
