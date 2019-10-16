@@ -117,6 +117,12 @@ class CLI {
     providers.google.GOOGLE_CLIENT_EMAIL = 'clientEmail'
     providers.google.GOOGLE_PRIVATE_KEY = 'privateKey'
 
+    // Tencent
+    providers.tencent = {}
+    providers.tencent.TENCENT_APPID = 'tencent_appid'
+    providers.tencent.TENCENT_SECRET_ID = 'tencent_secret_id'
+    providers.tencent.TENCENT_SECRET_KEY = 'tencent_secret_key'
+
     const credentials = {}
 
     for (const provider in providers) {
