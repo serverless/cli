@@ -17,18 +17,7 @@ const red = chalk.rgb(255, 93, 93)
 class CLI {
   constructor(config = {}) {
     this.version = packageJson.version
-    this.root = config.root ? path.resolve(config.root) : process.cwd()
-    this.stateRoot = config.stateRoot
-      ? path.resolve(config.stateRoot)
-      : path.join(this.root, '.serverless')
-
-    this.credentials = config.credentials || {}
     this.debugMode = config.debug || false
-    this.state = { id: utils.randomId() }
-    this.id = this.state.id
-
-    // todo remove later when we update components
-    this.outputs = {}
 
     // Defaults
     this._ = {}
@@ -57,84 +46,6 @@ class CLI {
     setInterval(() => {
       this._.seconds++
     }, 1000)
-  }
-
-  async init() {
-    const contextStatePath = path.join(this.stateRoot, `_.json`)
-
-    if (await utils.fileExists(contextStatePath)) {
-      this.state = await utils.readFile(contextStatePath)
-    } else {
-      await utils.writeFile(contextStatePath, this.state)
-    }
-    this.id = this.state.id
-
-    await this.setCredentials()
-  }
-
-  resourceId() {
-    return `${this.id}-${utils.randomId()}`
-  }
-
-  async readState(id) {
-    const stateFilePath = path.join(this.stateRoot, `${id}.json`)
-    if (await utils.fileExists(stateFilePath)) {
-      return utils.readFile(stateFilePath)
-    }
-    return {}
-  }
-
-  async writeState(id, state) {
-    const stateFilePath = path.join(this.stateRoot, `${id}.json`)
-    await utils.writeFile(stateFilePath, state)
-    return state
-  }
-
-  async setCredentials() {
-    // Load env vars
-    let envVars = {}
-    const defaultEnvFilePath = path.join(this.root, `.env`)
-    const stageEnvFilePath = path.join(this.root, `.env.dev`) // todo remove this
-    if (await utils.fileExists(stageEnvFilePath)) {
-      envVars = dotenv.config({ path: path.resolve(stageEnvFilePath) }).parsed || {}
-    } else if (await utils.fileExists(defaultEnvFilePath)) {
-      envVars = dotenv.config({ path: path.resolve(defaultEnvFilePath) }).parsed || {}
-    }
-
-    // Known Provider Environment Variables and their SDK configuration properties
-    const providers = {}
-
-    // AWS
-    providers.aws = {}
-    providers.aws.AWS_ACCESS_KEY_ID = 'accessKeyId'
-    providers.aws.AWS_SECRET_ACCESS_KEY = 'secretAccessKey'
-    providers.aws.AWS_REGION = 'region'
-
-    // Google
-    providers.google = {}
-    providers.google.GOOGLE_APPLICATION_CREDENTIALS = 'applicationCredentials'
-    providers.google.GOOGLE_PROJECT_ID = 'projectId'
-    providers.google.GOOGLE_CLIENT_EMAIL = 'clientEmail'
-    providers.google.GOOGLE_PRIVATE_KEY = 'privateKey'
-
-    const credentials = {}
-
-    for (const provider in providers) {
-      const providerEnvVars = providers[provider]
-      for (const providerEnvVar in providerEnvVars) {
-        if (!envVars.hasOwnProperty(providerEnvVar)) {
-          continue
-        }
-        if (!credentials[provider]) {
-          credentials[provider] = {}
-        }
-        credentials[provider][providerEnvVars[providerEnvVar]] = envVars[providerEnvVar]
-      }
-    }
-
-    this.credentials = credentials
-
-    return credentials
   }
 
   close(reason, message) {
@@ -187,7 +98,7 @@ class CLI {
       message = red('canceled')
     }
     if (reason === 'done') {
-      message = green('done')
+      message = green(message || 'done')
     }
 
     // Clear any existing content
@@ -281,7 +192,7 @@ class CLI {
 
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
-    console.log() // eslint-disable-line
+    // console.log() // eslint-disable-line
 
     console.log(`  ${msg}`) // eslint-disable-line
 
@@ -297,7 +208,7 @@ class CLI {
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
 
-    console.log(`  ${grey.bold(`DEBUG ${figures.line}`)} ${chalk.white(msg)}`) // eslint-disable-line
+    console.log(`  ${grey.bold(`core ${figures.line}`)} ${chalk.white(msg)}`) // eslint-disable-line
 
     // Put cursor to starting position for next view
     process.stdout.write(ansiEscapes.cursorLeft)
@@ -353,8 +264,9 @@ class CLI {
     this.renderStatus(status, entity)
   }
 
-  // todo remove
-  output() {}
+  output(key, value) {
+    this.log(`${green(key)} ${value}`) // eslint-disable-line
+  }
 }
 
 module.exports = CLI
