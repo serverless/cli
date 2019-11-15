@@ -1,6 +1,6 @@
 {
   "name": "@serverless/core",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Serverless Components Core",
   "main": "./index.js",
   "publishConfig": {
@@ -13,6 +13,6 @@
   "author": "Serverless, Inc.",
   "license": "MIT",
   "dependencies": {
-    "@serverless/client": "0.0.3"
+    "@serverless/client": "0.0.4"
   }
 }

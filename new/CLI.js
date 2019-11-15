@@ -16,6 +16,7 @@ const red = chalk.rgb(255, 93, 93)
 
 class CLI {
   constructor(config = {}) {
+    this.command = config.command
     this.version = packageJson.version
     this.debugMode = config.debug || false
 
@@ -46,17 +47,6 @@ class CLI {
     setInterval(() => {
       this._.seconds++
     }, 1000)
-  }
-
-  close(reason, message) {
-    // Skip if not active
-    process.stdout.write(ansiEscapes.cursorShow)
-    if (!this.isStatusEngineActive()) {
-      console.log() // eslint-disable-line
-      process.exit(0)
-      return
-    }
-    return this.statusEngineStop(reason, message)
   }
 
   getRelativeVerticalCursorPosition(contentString) {
@@ -251,6 +241,17 @@ class CLI {
     process.stdout.write(prettyoutput(outputs, {}, 2)) // eslint-disable-line
   }
 
+  close(reason, message) {
+    // Skip if not active
+    process.stdout.write(ansiEscapes.cursorShow)
+    if (!this.isStatusEngineActive()) {
+      console.log() // eslint-disable-line
+      process.exit(0)
+      return
+    }
+    return this.statusEngineStop(reason, message)
+  }
+
   // basic CLI utilities
   log(msg) {
     this.renderLog(msg)
@@ -264,8 +265,13 @@ class CLI {
     this.renderStatus(status, entity)
   }
 
-  output(key, value) {
-    this.log(`${green(key)} ${value}`) // eslint-disable-line
+  error(e) {
+    this.renderError(e)
+    this.close('error', e)
+  }
+
+  outputs(outputs) {
+    return this.renderOutputs(outputs)
   }
 }
 

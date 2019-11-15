@@ -9,6 +9,12 @@ class Component {
       throw error
     }
 
+    if (!config.org) {
+      const error = new Error('org is missing')
+      error.name = 'missingOrg'
+      throw error
+    }
+
     if (!config.app) {
       const error = new Error('app is missing')
       error.name = 'missingApp'
@@ -25,7 +31,7 @@ class Component {
     this.app = config.app
     this.accessKey = config.accessKey
     this.socket = config.socket
-    this.debugMode = true
+    this.debugMode = config.debugMode
     this.stage = config.stage || 'dev'
     this.state = config.state || {}
   }
@@ -62,7 +68,7 @@ class Component {
       component,
       stage: this.stage,
       name: `${this.name}.${alias}`,
-      connectoinId: this.connectoinId
+      connectionId: this.connectionId
     }
     const proxy = new Proxy(
       {},

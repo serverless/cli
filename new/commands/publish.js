@@ -1,12 +1,11 @@
-const path = require('path')
 const axios = require('axios')
+const path = require('path')
 const globby = require('globby')
 const AdmZip = require('adm-zip')
 const { contains, isNil, last, split } = require('ramda')
 const { tmpdir } = require('os')
-const { getComponentUploadUrl, publishComponent } = require('@serverless/client')()
 const fs = require('fs')
-const { getServerlessComponentFile } = require('../utils')
+const { getConfigFile } = require('../utils')
 
 const pack = async (inputDirPath, outputFilePath, include = [], exclude = []) => {
   const format = last(split('.', outputFilePath))
@@ -23,11 +22,16 @@ const pack = async (inputDirPath, outputFilePath, include = [], exclude = []) =>
 
   const zip = new AdmZip()
 
-  const files = (await globby(patterns, { cwd: inputDirPath })).sort() // we must sort to ensure correct hash
+  const files = (await globby(patterns, { cwd: inputDirPath })).sort()
 
-  // todo fix this
-  // files.map((file) => zip.addLocalFile(file, path.dirname(file)))
-  files.map((file) => zip.addLocalFile(file))
+  files.map((file) => {
+    zip.addLocalFile(file, path.dirname(file))
+    if (file === path.basename(file)) {
+      zip.addLocalFile(file)
+    } else {
+      zip.addLocalFile(file, file)
+    }
+  })
 
   if (!isNil(include)) {
     include.forEach((file) => zip.addLocalFile(file))
@@ -38,40 +42,64 @@ const pack = async (inputDirPath, outputFilePath, include = [], exclude = []) =>
   return outputFilePath
 }
 
+const getComponentUploadUrl = async (serverlessComponentFile) => {
+  const url = `https://96xeb6bki4.execute-api.us-east-1.amazonaws.com/dev/component/${serverlessComponentFile.name}`
+  const data = JSON.stringify(serverlessComponentFile)
+  const serverlessAccessKey = process.env.SERVERLESS_ACCESS_KEY
+  const headers = {
+    Authorization: `Bearer ${serverlessAccessKey}`,
+    'serverless-org-name': serverlessComponentFile.org,
+    'content-type': 'application/json'
+  }
+  try {
+    const res = await axios({
+      method: 'put',
+      url,
+      data,
+      headers
+    })
+    return res.data
+  } catch (e) {
+    throw new Error(e.response.data.message)
+  }
+}
+
 const putComponentPackage = async (componentPackagePath, componentUploadUrl) => {
-  await axios({
-    method: 'put',
-    url: componentUploadUrl,
-    data: fs.readFileSync(componentPackagePath),
-    headers: {
-      'Content-Type': 'application/zip'
-    }
-  })
+  const instance = axios.create()
+
+  // axios auto adds headers that causes signature mismatch
+  // so we gotta hack it to remove that
+  instance.defaults.headers.common = {}
+  instance.defaults.headers.put = {}
+  const file = fs.readFileSync(componentPackagePath)
+
+  try {
+    await instance.put(componentUploadUrl.url, file)
+  } catch (e) {
+    throw e
+  }
 }
 
 module.exports = async (cli) => {
-  const serverlessComponentFile = getServerlessComponentFile(process.cwd())
-  const componentName = serverlessComponentFile.name
-  const componentVersion = serverlessComponentFile.version
+  const serverlessComponentFile = getConfigFile('serverless.component')
 
-  let componentNameVersionPair
-  if (componentVersion) {
-    componentNameVersionPair = `${componentName}@${componentVersion}`
-  } else {
-    componentNameVersionPair = componentName
+  if (!serverlessComponentFile) {
+    throw new Error('serverless.component.yml not found in the current working directory')
   }
 
-  cli.status('publishing', componentNameVersionPair)
-  cli.debug(`publishing component "${componentNameVersionPair}"`)
-  cli.debug(`fetching component upload url`)
+  cli.status(`publishing`, `${serverlessComponentFile.name}@${serverlessComponentFile.version}`)
 
-  const { componentUploadUrl, componentId } = await getComponentUploadUrl({
-    componentName,
-    componentVersion
-  })
+  cli.debug(`getting upload url`)
+
+  const componentUploadUrl = await getComponentUploadUrl(serverlessComponentFile)
 
   const inputDirPath = process.cwd()
-  const outputFilePath = path.join(tmpdir(), `${componentId}.zip`)
+  const outputFilePath = path.join(
+    tmpdir(),
+    `${Math.random()
+      .toString(36)
+      .substring(6)}.zip`
+  )
 
   cli.debug(`packaging component from ${inputDirPath}`)
   const componentPackagePath = await pack(inputDirPath, outputFilePath)
@@ -79,21 +107,7 @@ module.exports = async (cli) => {
 
   cli.debug(`uploading component package`)
   await putComponentPackage(componentPackagePath, componentUploadUrl)
-
-  const componentData = {
-    componentName,
-    componentId
-  }
-
-  if (componentVersion) {
-    componentData.componentVersion = componentVersion
-  }
-
-  cli.debug(`submitting component data`)
-
-  await publishComponent(componentData)
-
-  cli.debug(`component "${componentNameVersionPair}" was published successfully`)
+  cli.debug(`component package uploaded`)
 
   cli.close('done', 'published')
 }
