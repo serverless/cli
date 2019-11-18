@@ -144,8 +144,8 @@ const getComponentInstanceData = (serverlessFile) => {
 }
 
 const isComponentsProject = () => {
-  const serverlessComponentFile = getConfigFile('serverless.component')
-  const serverlessFile = getConfigFile('serverless')
+  const serverlessComponentFile = getConfig('serverless.component')
+  const serverlessFile = getConfig('serverless')
 
   if (serverlessComponentFile || (serverlessFile && !serverlessFile.provider)) {
     return true
@@ -158,5 +158,6 @@ module.exports = {
   getConfig,
   resolveConfig,
   getComponentInstanceData,
-  isComponentsProject
+  isComponentsProject,
+  fileExistsSync
 }

@@ -1,61 +1,78 @@
 const path = require('path')
-const { saveComponentState, logComponentMessage, runComponent } = require('@serverless/client')()
+const { saveComponentState, sendToConnection, runComponent } = require('@serverless/client')()
 
 class Component {
   constructor(config) {
-    if (!config.name) {
-      const error = new Error('component name is missing')
-      error.name = 'missingComponentName'
-      throw error
-    }
-
-    if (!config.org) {
-      const error = new Error('org is missing')
-      error.name = 'missingOrg'
-      throw error
-    }
-
-    if (!config.app) {
-      const error = new Error('app is missing')
-      error.name = 'missingApp'
-      throw error
-    }
-
-    if (!config.accessKey) {
-      const error = new Error('accessKey is missing')
-      error.name = 'missingAccessKey'
-      throw error
-    }
-
     this.name = config.name
+    this.org = config.org
     this.app = config.app
     this.accessKey = config.accessKey
-    this.socket = config.socket
+    this.credentials = config.credentials
+    this.socket = config.socket || {}
     this.debugMode = config.debugMode
-    this.stage = config.stage || 'dev'
+    this.stage = config.stage
     this.state = config.state || {}
+    this.componentName = config.componentName
+    this.componentVersion = config.componentVersion
   }
 
   async debug(message) {
     if (this.socket && this.socket.connectionId && this.debugMode) {
       const inputs = {
         name: this.name,
+        org: this.org,
         app: this.app,
-        accessKey: this.accessKey,
         stage: this.stage,
-        message,
+        accessKey: this.accessKey,
+        event: 'debug',
+        data: message,
         socket: this.socket
       }
-      await logComponentMessage(inputs)
+      await sendToConnection(inputs)
+    }
+  }
+
+  async log(message) {
+    if (this.socket && this.socket.connectionId && this.debugMode) {
+      const inputs = {
+        name: this.name,
+        org: this.org,
+        app: this.app,
+        stage: this.stage,
+        accessKey: this.accessKey,
+        event: 'log',
+        data: message,
+        socket: this.socket
+      }
+      await sendToConnection(inputs)
+    }
+  }
+
+  async status(message) {
+    if (this.socket && this.socket.connectionId) {
+      const inputs = {
+        name: this.name,
+        org: this.org,
+        app: this.app,
+        stage: this.stage,
+        accessKey: this.accessKey,
+        event: 'status',
+        data: message,
+        socket: this.socket
+      }
+      await sendToConnection(inputs)
     }
   }
 
   async save() {
     const inputs = {
-      name: this.name,
+      org: this.org,
       app: this.app,
-      accessKey: this.accessKey,
       stage: this.stage,
+      name: this.name,
+      componentName: this.componentName,
+      componentVersion: this.componentVersion,
+      accessKey: this.accessKey,
       state: this.state
     }
     await saveComponentState(inputs)
@@ -93,6 +110,15 @@ Component.handler = async (event = {}) => {
   const serverlessFilePath = path.join(process.env.LAMBDA_TASK_ROOT, 'serverless')
   const UserComponent = require(serverlessFilePath)
   const userComponent = new UserComponent(event)
+
+  if (typeof userComponent[event.method] !== 'function') {
+    const error = new Error(
+      `method "${event.method}" does not exist in component "${userComponent.componentName}@${userComponent.componentVersion}"`
+    )
+    error.name = 'MethodNotFound'
+
+    throw error
+  }
   return userComponent[event.method](event.inputs)
 }
 

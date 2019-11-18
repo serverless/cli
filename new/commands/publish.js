@@ -5,7 +5,7 @@ const AdmZip = require('adm-zip')
 const { contains, isNil, last, split } = require('ramda')
 const { tmpdir } = require('os')
 const fs = require('fs')
-const { getConfigFile } = require('../utils')
+const { getConfig } = require('../utils')
 
 const pack = async (inputDirPath, outputFilePath, include = [], exclude = []) => {
   const format = last(split('.', outputFilePath))
@@ -61,16 +61,17 @@ const getComponentUploadUrl = async (serverlessComponentFile) => {
     return res.data
   } catch (e) {
     if (e.response.status !== 200) {
-      throw new Error(`${e.response.status} ${e.response.statusText || ''} ${e.response.data.message || ''}`)
+      throw new Error(
+        `${e.response.status} ${e.response.statusText || ''} ${e.response.data.message || ''}`
+      )
     }
   }
 }
 
 const putComponentPackage = async (componentPackagePath, componentUploadUrl) => {
-  const instance = axios.create()
-
   // axios auto adds headers that causes signature mismatch
   // so we gotta hack it to remove that
+  const instance = axios.create()
   instance.defaults.headers.common = {}
   instance.defaults.headers.put = {}
   const file = fs.readFileSync(componentPackagePath)
@@ -87,7 +88,6 @@ const putComponentPackage = async (componentPackagePath, componentUploadUrl) => 
  */
 
 const validateComponentDefinition = async (serverlessComponentFile) => {
-
   if (!serverlessComponentFile.name) {
     throw new Error('"name" is required in serverless.component.yml.')
   }
@@ -103,7 +103,7 @@ const validateComponentDefinition = async (serverlessComponentFile) => {
 }
 
 module.exports = async (cli) => {
-  const serverlessComponentFile = getConfigFile('serverless.component')
+  const serverlessComponentFile = getConfig('serverless.component')
 
   validateComponentDefinition(serverlessComponentFile)
 

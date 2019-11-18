@@ -198,7 +198,7 @@ class CLI {
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
 
-    console.log(`  ${grey.bold(`core ${figures.line}`)} ${chalk.white(msg)}`) // eslint-disable-line
+    console.log(`  ${msg}`) // eslint-disable-line
 
     // Put cursor to starting position for next view
     process.stdout.write(ansiEscapes.cursorLeft)
