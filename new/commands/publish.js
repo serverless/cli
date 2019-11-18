@@ -60,7 +60,9 @@ const getComponentUploadUrl = async (serverlessComponentFile) => {
     })
     return res.data
   } catch (e) {
-    throw new Error(e.response.data.message)
+    if (e.response.status !== 200) {
+      throw new Error(`${e.response.status} ${e.response.statusText || ''} ${e.response.data.message || ''}`)
+    }
   }
 }
 
@@ -80,8 +82,30 @@ const putComponentPackage = async (componentPackagePath, componentUploadUrl) => 
   }
 }
 
+/**
+ * Validate Component Definition
+ */
+
+const validateComponentDefinition = async (serverlessComponentFile) => {
+
+  if (!serverlessComponentFile.name) {
+    throw new Error('"name" is required in serverless.component.yml.')
+  }
+  if (!serverlessComponentFile.org) {
+    throw new Error('"org" is required in serverless.component.yml.')
+  }
+  if (!serverlessComponentFile.version) {
+    throw new Error('"version" is required in serverless.component.yml.')
+  }
+  if (!serverlessComponentFile.author) {
+    throw new Error('"author" is required in serverless.component.yml.')
+  }
+}
+
 module.exports = async (cli) => {
   const serverlessComponentFile = getConfigFile('serverless.component')
+
+  validateComponentDefinition(serverlessComponentFile)
 
   if (!serverlessComponentFile) {
     throw new Error('serverless.component.yml not found in the current working directory')
