@@ -1,5 +1,5 @@
 const { runComponent } = require('@serverless/client')()
-const { getConfigFile, resolveConfig, getComponentInstanceData } = require('../utils')
+const { getConfig, resolveConfig, getComponentInstanceData } = require('../utils')
 const WebSocket = require('ws')
 
 const connect = async (cli) => {
@@ -27,11 +27,15 @@ const connect = async (cli) => {
   })
 }
 
+// todo command does not exist
+// stream status and other log methods
+// load
+// axios error or replace axios
 module.exports = async (cli) => {
   cli.status('Connecting')
   const socket = await connect(cli)
 
-  const serverlessFile = getConfigFile('serverless')
+  const serverlessFile = getConfig('serverless')
 
   // todo resolve code input
   const resolvedServerlessFile = resolveConfig(serverlessFile)

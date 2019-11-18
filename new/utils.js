@@ -33,7 +33,7 @@ const readFileSync = (filePath, options = {}) => {
   return parseFile(filePath, contents, options)
 }
 
-const getConfigFile = (fileName) => {
+const getConfig = (fileName) => {
   const ymlFilePath = path.join(process.cwd(), `${fileName}.yml`)
   const yamlFilePath = path.join(process.cwd(), `${fileName}.yaml`)
   const jsonFilePath = path.join(process.cwd(), `${fileName}.json`)
@@ -155,7 +155,7 @@ const isComponentsProject = () => {
 }
 
 module.exports = {
-  getConfigFile,
+  getConfig,
   resolveConfig,
   getComponentInstanceData,
   isComponentsProject
