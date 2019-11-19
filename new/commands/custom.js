@@ -1,3 +1,4 @@
+const args = require('minimist')(process.argv.slice(2))
 const dotenv = require('dotenv')
 const path = require('path')
 const WebSocket = require('ws')
@@ -100,6 +101,10 @@ module.exports = async (cli) => {
   const resolvedServerlessFile = resolveConfig(serverlessFile)
 
   const componentInstanceData = getComponentInstanceData(resolvedServerlessFile)
+
+  if (args.dev) {
+    componentInstanceData.componentVersion = 'dev'
+  }
 
   const credentials = getCredentials()
 

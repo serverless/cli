@@ -1,3 +1,4 @@
+const args = require('minimist')(process.argv.slice(2))
 const axios = require('axios')
 const path = require('path')
 const globby = require('globby')
@@ -116,7 +117,9 @@ module.exports = async (cli) => {
 
   cli.debug(`getting upload url`)
 
-  serverlessComponentFile.version = serverlessComponentFile.version || 'dev'
+  if (!serverlessComponentFile.version || args.dev) {
+    serverlessComponentFile.version = 'dev'
+  }
 
   const componentUploadUrl = await getComponentUploadUrl(serverlessComponentFile)
 
