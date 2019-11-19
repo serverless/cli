@@ -89,11 +89,6 @@ const getCredentials = () => {
   return credentials
 }
 
-// get credentials
-// status and log
-// load
-// state table optimization
-// axios error or replace axios
 module.exports = async (cli) => {
   cli.status('Connecting')
 
@@ -112,6 +107,7 @@ module.exports = async (cli) => {
 
   const runComponentInputs = {
     ...componentInstanceData,
+    accessKey: process.env.SERVERLESS_ACCESS_KEY,
     method: cli.command,
     credentials,
     debugMode: cli.debugMode,

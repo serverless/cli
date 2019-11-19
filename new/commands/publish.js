@@ -25,7 +25,6 @@ const pack = async (inputDirPath, outputFilePath, include = [], exclude = []) =>
   const files = (await globby(patterns, { cwd: inputDirPath })).sort()
 
   files.map((file) => {
-    zip.addLocalFile(file, path.dirname(file))
     if (file === path.basename(file)) {
       zip.addLocalFile(file)
     } else {
@@ -43,7 +42,7 @@ const pack = async (inputDirPath, outputFilePath, include = [], exclude = []) =>
 }
 
 const getComponentUploadUrl = async (serverlessComponentFile) => {
-  const url = `https://96xeb6bki4.execute-api.us-east-1.amazonaws.com/dev/component/${serverlessComponentFile.name}`
+  const url = `https://y6w6rsjkib.execute-api.us-east-1.amazonaws.com/dev/component/${serverlessComponentFile.name}`
   const data = JSON.stringify(serverlessComponentFile)
   const serverlessAccessKey = process.env.SERVERLESS_ACCESS_KEY
   const headers = {
@@ -88,14 +87,14 @@ const putComponentPackage = async (componentPackagePath, componentUploadUrl) => 
  */
 
 const validateComponentDefinition = async (serverlessComponentFile) => {
+  if (!serverlessComponentFile) {
+    throw new Error('serverless.component.yml not found in the current working directory')
+  }
   if (!serverlessComponentFile.name) {
     throw new Error('"name" is required in serverless.component.yml.')
   }
   if (!serverlessComponentFile.org) {
     throw new Error('"org" is required in serverless.component.yml.')
-  }
-  if (!serverlessComponentFile.version) {
-    throw new Error('"version" is required in serverless.component.yml.')
   }
   if (!serverlessComponentFile.author) {
     throw new Error('"author" is required in serverless.component.yml.')
@@ -107,13 +106,17 @@ module.exports = async (cli) => {
 
   validateComponentDefinition(serverlessComponentFile)
 
-  if (!serverlessComponentFile) {
-    throw new Error('serverless.component.yml not found in the current working directory')
+  let cliEntity = serverlessComponentFile.name
+
+  if (serverlessComponentFile.version) {
+    cliEntity = `${serverlessComponentFile.name}@${serverlessComponentFile.version}`
   }
 
-  cli.status(`publishing`, `${serverlessComponentFile.name}@${serverlessComponentFile.version}`)
+  cli.status(`publishing`, cliEntity)
 
   cli.debug(`getting upload url`)
+
+  serverlessComponentFile.version = serverlessComponentFile.version || 'dev'
 
   const componentUploadUrl = await getComponentUploadUrl(serverlessComponentFile)
 

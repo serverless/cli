@@ -126,18 +126,20 @@ const getComponentInstanceData = (serverlessFile) => {
     throw new Error(`"${app}" is not a valid org/app`)
   }
 
-  if (typeof component !== 'string' || component.split('@').length !== 2) {
-    throw new Error(`"${component}" is not a valid component name/version`)
-  }
-
   const data = {
     org: app.split('/')[0],
     app: app.split('/')[1],
     stage: stage,
     name,
-    componentName: component.split('@')[0],
-    componentVersion: component.split('@')[1],
     inputs
+  }
+
+  if (component.split('@').length === 2) {
+    data.componentName = component.split('@')[0]
+    data.componentVersion = component.split('@')[1]
+  } else {
+    data.componentName = component
+    data.componentVersion = 'dev'
   }
 
   return data
@@ -154,10 +156,13 @@ const isComponentsProject = () => {
   return false
 }
 
+const sleep = async (wait) => new Promise((resolve) => setTimeout(() => resolve(), wait))
+
 module.exports = {
   getConfig,
   resolveConfig,
   getComponentInstanceData,
   isComponentsProject,
-  fileExistsSync
+  fileExistsSync,
+  sleep
 }
