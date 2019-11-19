@@ -112,14 +112,14 @@ module.exports = async (cli) => {
   if (serverlessComponentFile.version) {
     cliEntity = `${serverlessComponentFile.name}@${serverlessComponentFile.version}`
   }
+  if (!serverlessComponentFile.version || args.dev) {
+    serverlessComponentFile.version = 'dev'
+    cliEntity = `${serverlessComponentFile.name}@dev`
+  }
 
   cli.status(`publishing`, cliEntity)
 
   cli.debug(`getting upload url`)
-
-  if (!serverlessComponentFile.version || args.dev) {
-    serverlessComponentFile.version = 'dev'
-  }
 
   const componentUploadUrl = await getComponentUploadUrl(serverlessComponentFile)
 
