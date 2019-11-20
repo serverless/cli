@@ -1,5 +1,30 @@
 const path = require('path')
+const axios = require('axios')
+const fs = require('fs')
 const { saveComponentState, sendToConnection, runComponent } = require('@serverless/client')()
+
+const getComponentCodeFile = async (file, downloadDirectory) => {
+  const instance = axios.create()
+  instance.defaults.headers.common = {}
+  instance.defaults.headers.get = {}
+  // todo handle errors
+  try {
+    const res = await instance.get(file.downloadUrl)
+
+    fs.writeFileSync(path.join(downloadDirectory, file.relativePath), res.data)
+  } catch (e) {
+    throw e
+  }
+}
+
+const getComponentCodeFiles = async (files, downloadDirectory) => {
+  const promises = []
+  for (const file of files) {
+    promises.push(getComponentCodeFile(file, downloadDirectory))
+  }
+
+  return Promise.all(promises)
+}
 
 class Component {
   constructor(config) {
@@ -119,7 +144,20 @@ Component.handler = async (event = {}) => {
 
     throw error
   }
+  if (event.inputs.code && event.inputs.code.src) {
+    const downloadDirectory = path.join(
+      '/tmp',
+      Math.random()
+        .toString(36)
+        .substring(6)
+    )
+    fs.mkdirSync(downloadDirectory)
+    await getComponentCodeFiles(event.inputs.code.src, downloadDirectory)
+    event.inputs.code.src = downloadDirectory
+  }
+
   return userComponent[event.method](event.inputs)
+  // todo clear tmp dir
 }
 
 module.exports = Component

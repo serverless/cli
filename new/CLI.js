@@ -22,7 +22,7 @@ class CLI {
 
     // Defaults
     this._ = {}
-    this._.entity = 'Components'
+    this._.entity = 'Serverless'
     this._.useTimer = true
     this._.seconds = 0
     // Status defaults

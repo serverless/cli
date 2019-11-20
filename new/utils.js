@@ -107,44 +107,6 @@ const resolveConfig = (config) => {
   return resolvedConfig
 }
 
-const getComponentInstanceData = (serverlessFile) => {
-  const { app, stage, name, component, inputs } = serverlessFile
-
-  if (typeof app === 'undefined') {
-    throw new Error(`Missing "app" property in serverless.yml`)
-  }
-
-  if (typeof component === 'undefined') {
-    throw new Error(`Missing "component" property in serverless.yml`)
-  }
-
-  if (typeof name === 'undefined') {
-    throw new Error(`Missing "name" property in serverless.yml`)
-  }
-
-  if (typeof app !== 'string' || app.split('/').length !== 2) {
-    throw new Error(`"${app}" is not a valid org/app`)
-  }
-
-  const data = {
-    org: app.split('/')[0],
-    app: app.split('/')[1],
-    stage: stage,
-    name,
-    inputs
-  }
-
-  if (component.split('@').length === 2) {
-    data.componentName = component.split('@')[0]
-    data.componentVersion = component.split('@')[1]
-  } else {
-    data.componentName = component
-    data.componentVersion = 'dev'
-  }
-
-  return data
-}
-
 const isComponentsProject = () => {
   const serverlessComponentFile = getConfig('serverless.component')
   const serverlessFile = getConfig('serverless')
@@ -161,7 +123,6 @@ const sleep = async (wait) => new Promise((resolve) => setTimeout(() => resolve(
 module.exports = {
   getConfig,
   resolveConfig,
-  getComponentInstanceData,
   isComponentsProject,
   fileExistsSync,
   sleep

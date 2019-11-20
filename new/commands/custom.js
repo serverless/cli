@@ -1,11 +1,19 @@
 const args = require('minimist')(process.argv.slice(2))
 const dotenv = require('dotenv')
 const path = require('path')
+const globby = require('globby')
+const axios = require('axios')
+const fs = require('fs')
 const WebSocket = require('ws')
-const { runComponent } = require('@serverless/client')()
-const { getConfig, resolveConfig, getComponentInstanceData, fileExistsSync } = require('../utils')
+const { runComponent, getComponentCodeFilesUrls } = require('@serverless/client')()
+const { getConfig, resolveConfig, fileExistsSync } = require('../utils')
 
 const connect = async (cli) => {
+  // if (!cli.debugMode) {
+  //   return
+  // }
+
+  cli.status('Connecting')
   const url = 'wss://jvwqjke37i.execute-api.us-east-1.amazonaws.com/dev' // todo change to prod
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url)
@@ -90,32 +98,142 @@ const getCredentials = () => {
   return credentials
 }
 
-module.exports = async (cli) => {
-  cli.status('Connecting')
+const putComponentCodeFile = async (file, uploadDirectory) => {
+  const uploadDirectoryPath = path.resolve(uploadDirectory)
+  const instance = axios.create()
+  instance.defaults.headers.common = {}
+  instance.defaults.headers.put = {}
+  const body = fs.readFileSync(path.join(uploadDirectoryPath, file.relativePath))
+  // todo handle errors
+  try {
+    await instance.put(file.uploadUrl, body)
+  } catch (e) {
+    throw e
+  }
+}
 
-  const socket = await connect(cli)
-
-  const serverlessFile = getConfig('serverless')
-
-  // todo resolve code input
-  const resolvedServerlessFile = resolveConfig(serverlessFile)
-
-  const componentInstanceData = getComponentInstanceData(resolvedServerlessFile)
-
-  if (args.dev) {
-    componentInstanceData.componentVersion = 'dev'
+const putComponentCodeFiles = async (files, uploadDirectory) => {
+  const promises = []
+  for (const file of files) {
+    promises.push(putComponentCodeFile(file, uploadDirectory))
   }
 
-  const credentials = getCredentials()
+  return Promise.all(promises)
+}
 
-  cli.status('Deploying')
+const resolveComponentCodeFiles = async (inputs) => {
+  if (!inputs || !inputs.code || !inputs.code.src) {
+    return inputs
+  }
+
+  const uploadDirectoryPath = path.resolve(inputs.code.src)
+
+  const patterns = ['**', '!node_modules']
+  const files = (await globby(patterns, { cwd: uploadDirectoryPath }))
+    .sort()
+    .map((relativePath) => {
+      return {
+        relativePath
+      }
+    })
+
+  const res = await getComponentCodeFilesUrls({ files })
+
+  await putComponentCodeFiles(res.files, uploadDirectoryPath)
+
+  inputs.code.src = res.files
+
+  return inputs
+}
+
+const getComponentCodeFile = async (file, downloadDirectory) => {
+  const instance = axios.create()
+  instance.defaults.headers.common = {}
+  instance.defaults.headers.get = {}
+  // todo handle errors
+  try {
+    const res = await instance.get(file.downloadUrl)
+
+    fs.writeFileSync(path.join(downloadDirectory, file.relativePath), res.data)
+  } catch (e) {
+    throw e
+  }
+}
+
+const getComponentCodeFiles = async (files, downloadDirectory) => {
+  const promises = []
+  for (const file of files) {
+    promises.push(getComponentCodeFile(file, downloadDirectory))
+  }
+
+  return Promise.all(promises)
+}
+
+const getComponentInstanceData = async (cli) => {
+  const serverlessFile = getConfig('serverless')
+
+  const resolvedServerlessFile = resolveConfig(serverlessFile)
+
+  const { app, stage, name, component, inputs } = resolvedServerlessFile
+
+  if (typeof app === 'undefined') {
+    throw new Error(`Missing "app" property in serverless.yml`)
+  }
+
+  if (typeof component === 'undefined') {
+    throw new Error(`Missing "component" property in serverless.yml`)
+  }
+
+  if (typeof name === 'undefined') {
+    throw new Error(`Missing "name" property in serverless.yml`)
+  }
+
+  if (typeof app !== 'string' || app.split('/').length !== 2) {
+    throw new Error(`"${app}" is not a valid org/app`)
+  }
+
+  const data = {
+    org: app.split('/')[0],
+    app: app.split('/')[1],
+    stage: stage,
+    name,
+    method: cli.command,
+    debugMode: cli.debugMode,
+    credentials: getCredentials(),
+    accessKey: process.env.SERVERLESS_ACCESS_KEY,
+    inputs
+  }
+
+  if (component.split('@').length === 2) {
+    data.componentName = component.split('@')[0]
+    data.componentVersion = component.split('@')[1]
+  } else {
+    data.componentName = component
+    data.componentVersion = 'dev'
+  }
+
+  if (args.dev) {
+    data.componentVersion = 'dev'
+  }
+
+  if (inputs && inputs.code && inputs.code.src) {
+    cli.status('Uploading Code')
+    data.inputs = await resolveComponentCodeFiles(inputs)
+  }
+
+  return data
+}
+
+module.exports = async (cli) => {
+  const res = await Promise.all([connect(cli), getComponentInstanceData(cli)])
+
+  const socket = res[0]
+  const componentInstanceData = res[1]
+
+  cli.status('Deploying', componentInstanceData.name)
 
   const runComponentInputs = {
     ...componentInstanceData,
-    accessKey: process.env.SERVERLESS_ACCESS_KEY,
-    method: cli.command,
-    credentials,
-    debugMode: cli.debugMode,
     socket
   }
 
