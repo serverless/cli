@@ -185,7 +185,9 @@ const uploadComponentSrc = async (src, cli) => {
   const packageUrls = res[0]
 
   cli.status('Uploading')
+  cli.debug(`uploading ${packagePath} to ${packageUrls.upload.split('?')[0]}`)
   await putPackage(packagePath, packageUrls.upload)
+  cli.debug(`uploading completed`)
 
   return packageUrls.download
   // await downloadPackge(packageUrls.download)
