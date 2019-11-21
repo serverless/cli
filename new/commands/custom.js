@@ -197,16 +197,16 @@ const resolveComponentSrcInput = async (inputs, cli) => {
   if (typeof inputs.src === 'object' && inputs.src.hook && inputs.src.dist) {
     // First run the build hook, if "hook" and "dist" are specified
     cli.status('Building')
-    // const options = { cwd: inputs.src.src }
-    // try {
-    //   await exec(inputs.src.hook, options)
-    // } catch (err) {
-    //   console.error(err.stderr) // eslint-disable-line
-    //   throw new Error(
-    //     `Failed building website via "${inputs.src.hook}" due to the following error: "${err.stderr}"`
-    //   )
-    // }
-    uploadDirectoryPath = path.resolve(inputs.src.dist)
+    const options = { cwd: inputs.src.src }
+    try {
+      await exec(inputs.src.hook, options)
+    } catch (err) {
+      console.error(err.stderr) // eslint-disable-line
+      throw new Error(
+        `Failed building website via "${inputs.src.hook}" due to the following error: "${err.stderr}"`
+      )
+    }
+    uploadDirectoryPath = path.resolve(path.join(inputs.src.src, inputs.src.dist))
   } else if (typeof inputs.src === 'object' && inputs.src.src) {
     uploadDirectoryPath = path.resolve(inputs.src.src)
   } else if (typeof inputs.src === 'string') {
