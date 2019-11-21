@@ -201,9 +201,10 @@ const resolveComponentSrcInput = async (inputs, cli) => {
     try {
       await exec(inputs.src.hook, options)
     } catch (err) {
-      console.error(err.stderr) // eslint-disable-line
+      // console.error(err.stdout) // eslint-disable-line
       throw new Error(
-        `Failed building website via "${inputs.src.hook}" due to the following error: "${err.stderr}"`
+        `Failed building website via "${inputs.src.hook}" due to the following error: "${err.stderr}"
+        ${err.stdout}`
       )
     }
     uploadDirectoryPath = path.resolve(path.join(inputs.src.src, inputs.src.dist))
