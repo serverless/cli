@@ -176,9 +176,11 @@ const uploadComponentSrc = async (src, cli) => {
       .substring(6)}.zip`
   )
 
+  cli.debug(`packaging from ${src} into ${packagePath}`)
+
   cli.status('Packaging')
 
-  const res = await Promise.all([getPackageUrls(), pack(src, packagePath)])
+  const res = await Promise.all([getPackageUrls(), pack(src, packagePath, cli)])
 
   const packageUrls = res[0]
 
@@ -195,15 +197,15 @@ const resolveComponentSrcInput = async (inputs, cli) => {
   if (typeof inputs.src === 'object' && inputs.src.hook && inputs.src.dist) {
     // First run the build hook, if "hook" and "dist" are specified
     cli.status('Building')
-    const options = { cwd: inputs.src.src }
-    try {
-      await exec(inputs.src.hook, options)
-    } catch (err) {
-      console.error(err.stderr) // eslint-disable-line
-      throw new Error(
-        `Failed building website via "${inputs.src.hook}" due to the following error: "${err.stderr}"`
-      )
-    }
+    // const options = { cwd: inputs.src.src }
+    // try {
+    //   await exec(inputs.src.hook, options)
+    // } catch (err) {
+    //   console.error(err.stderr) // eslint-disable-line
+    //   throw new Error(
+    //     `Failed building website via "${inputs.src.hook}" due to the following error: "${err.stderr}"`
+    //   )
+    // }
     uploadDirectoryPath = path.resolve(inputs.src.dist)
   } else if (typeof inputs.src === 'object' && inputs.src.src) {
     uploadDirectoryPath = path.resolve(inputs.src.src)
