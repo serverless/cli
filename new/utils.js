@@ -137,6 +137,8 @@ const pack = async (inputDirPath, outputFilePath, cli, include = [], exclude = [
 
   const zip = new AdmZip()
 
+  cli.debug(`listing files in ${inputDirPath}`)
+
   const files = (await globby(patterns, { cwd: inputDirPath })).sort()
 
   files.map((file) => {
