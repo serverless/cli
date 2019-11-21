@@ -1,8 +1,10 @@
 const path = require('path')
 const fse = require('fs-extra')
-const { merge, endsWith } = require('ramda')
+const { merge, endsWith, contains, isNil, last, split } = require('ramda')
 const YAML = require('js-yaml')
 const traverse = require('traverse')
+const globby = require('globby')
+const AdmZip = require('adm-zip')
 
 const isYamlPath = (filePath) => endsWith('.yml', filePath) || endsWith('.yaml', filePath)
 
@@ -120,10 +122,45 @@ const isComponentsProject = () => {
 
 const sleep = async (wait) => new Promise((resolve) => setTimeout(() => resolve(), wait))
 
+const pack = async (inputDirPath, outputFilePath, include = [], exclude = []) => {
+  const format = last(split('.', outputFilePath))
+
+  if (!contains(format, ['zip', 'tar'])) {
+    throw new Error('Please provide a valid format. Either a "zip" or a "tar"')
+  }
+
+  const patterns = ['**']
+
+  if (!isNil(exclude)) {
+    exclude.forEach((excludedItem) => patterns.push(`!${excludedItem}`))
+  }
+
+  const zip = new AdmZip()
+
+  const files = (await globby(patterns, { cwd: inputDirPath })).sort()
+
+  files.map((file) => {
+    if (file === path.basename(file)) {
+      zip.addLocalFile(path.join(inputDirPath, file))
+    } else {
+      zip.addLocalFile(path.join(inputDirPath, file), file)
+    }
+  })
+
+  if (!isNil(include)) {
+    include.forEach((file) => zip.addLocalFile(file))
+  }
+
+  zip.writeZip(outputFilePath)
+
+  return outputFilePath
+}
+
 module.exports = {
   getConfig,
   resolveConfig,
   isComponentsProject,
   fileExistsSync,
-  sleep
+  sleep,
+  pack
 }

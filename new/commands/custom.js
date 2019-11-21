@@ -3,12 +3,14 @@ const dotenv = require('dotenv')
 const path = require('path')
 const globby = require('globby')
 const axios = require('axios')
+const { tmpdir } = require('os')
+const download = require('download')
 const fs = require('fs')
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
 const WebSocket = require('ws')
-const { runComponent, getComponentCodeFilesUrls } = require('@serverless/client')()
-const { getConfig, resolveConfig, fileExistsSync } = require('../utils')
+const { runComponent, getComponentCodeFilesUrls, getPackageUrls } = require('@serverless/client')()
+const { getConfig, resolveConfig, fileExistsSync, pack } = require('../utils')
 
 const connect = async (cli) => {
   // if (!cli.debugMode) {
@@ -123,8 +125,71 @@ const putComponentCodeFiles = async (files, uploadDirectory) => {
   return Promise.all(promises)
 }
 
-const resolveComponentCodeFiles = async (inputs, cli) => {
+const putPackage = async (packagePath, packageUploadUrl) => {
+  const instance = axios.create()
+  instance.defaults.headers.common = {}
+  instance.defaults.headers.put = {}
+  const body = fs.readFileSync(packagePath)
+  // todo handle errors
+  try {
+    await instance.put(packageUploadUrl, body)
+  } catch (e) {
+    throw e
+  }
+}
 
+const downloadPackge = async (packageDownloadUrl) => {
+  const outputDirectory = path.join(
+    process.cwd(),
+    `${Math.random()
+      .toString(36)
+      .substring(6)}`
+  )
+  await download(packageDownloadUrl, outputDirectory, { extract: true })
+}
+
+const getPackage = async (packageDownloadUrl) => {
+  const outputFilePath = path.join(
+    process.cwd(),
+    `${Math.random()
+      .toString(36)
+      .substring(6)}.zip`
+  )
+  const instance = axios.create()
+  instance.defaults.headers.common = {}
+  instance.defaults.headers.get = {}
+  // todo handle errors
+  try {
+    const res = await instance.get(packageDownloadUrl)
+
+    fs.writeFileSync(outputFilePath, res.data)
+  } catch (e) {
+    throw e
+  }
+}
+
+const uploadComponentSrc = async (src, cli) => {
+  const packagePath = path.join(
+    tmpdir(),
+    `${Math.random()
+      .toString(36)
+      .substring(6)}.zip`
+  )
+
+  cli.status('Packaging')
+
+  const res = await Promise.all([getPackageUrls(), pack(src, packagePath)])
+
+  const packageUrls = res[0]
+
+  cli.status('Uploading')
+  await putPackage(packagePath, packageUrls.upload)
+
+  return packageUrls.download
+  // await downloadPackge(packageUrls.download)
+}
+
+const resolveComponentSrcInput = async (inputs, cli) => {
   let uploadDirectoryPath
 
   if (typeof inputs.src === 'object' && inputs.src.hook && inputs.src.dist) {
@@ -132,7 +197,7 @@ const resolveComponentCodeFiles = async (inputs, cli) => {
     cli.status('Building')
     const options = { cwd: inputs.src.src }
     try {
-      await exec(inputs.src.hook, { cwd: inputs.src.src })
+      await exec(inputs.src.hook, options)
     } catch (err) {
       console.error(err.stderr) // eslint-disable-line
       throw new Error(
@@ -145,26 +210,10 @@ const resolveComponentCodeFiles = async (inputs, cli) => {
   } else if (typeof inputs.src === 'string') {
     uploadDirectoryPath = path.resolve(inputs.src)
   } else {
-    throw new Error(
-      `Invalid "inputs.src".  Value must be a string or object.`
-    )
+    throw new Error(`Invalid "inputs.src".  Value must be a string or object.`)
   }
 
-  cli.status('Uploading')
-  const patterns = ['**', '!node_modules']
-  const files = (await globby(patterns, { cwd: uploadDirectoryPath }))
-    .sort()
-    .map((relativePath) => {
-      return {
-        relativePath
-      }
-    })
-
-  const res = await getComponentCodeFilesUrls({ files })
-
-  await putComponentCodeFiles(res.files, uploadDirectoryPath)
-
-  inputs.src.src = res.files
+  inputs.src = await uploadComponentSrc(uploadDirectoryPath, cli)
 
   return inputs
 }
@@ -240,7 +289,7 @@ const getComponentInstanceData = async (cli) => {
   }
 
   if (inputs && inputs.src) {
-    data.inputs = await resolveComponentCodeFiles(inputs, cli)
+    data.inputs = await resolveComponentSrcInput(inputs, cli)
   }
 
   return data
@@ -252,7 +301,7 @@ module.exports = async (cli) => {
   const socket = res[0]
   const componentInstanceData = res[1]
 
-  cli.status('Deploying', componentInstanceData.name)
+  cli.status('Running', componentInstanceData.name)
 
   const runComponentInputs = {
     ...componentInstanceData,

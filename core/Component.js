@@ -1,5 +1,6 @@
 const path = require('path')
 const axios = require('axios')
+const download = require('download')
 const fs = require('fs')
 const { saveComponentState, sendToConnection, runComponent } = require('@serverless/client')()
 
@@ -35,7 +36,7 @@ class Component {
     this.credentials = config.credentials
     this.socket = config.socket || {}
     this.debugMode = config.debugMode
-    this.stage = config.stage
+    this.stage = config.stage || 'dev'
     this.state = config.state || {}
     this.componentName = config.componentName
     this.componentVersion = config.componentVersion
@@ -103,15 +104,38 @@ class Component {
     await saveComponentState(inputs)
   }
 
-  async load(component, alias) {
+  load(component, alias) {
     const runComponentInputs = {
-      accessKey: this.accessKey,
+      org: this.org,
       app: this.app,
-      component,
       stage: this.stage,
-      name: `${this.name}.${alias}`,
-      connectionId: this.connectionId
+      credentials: this.credentials,
+      debugMode: this.debugMode,
+      accessKey: this.accessKey,
+      socket: this.socket
     }
+    if (component.split('@').length === 2) {
+      runComponentInputs.componentName = component.split('@')[0]
+      runComponentInputs.componentVersion = component.split('@')[1]
+    } else if (component.split('@').length === 1) {
+      runComponentInputs.componentName = component
+      runComponentInputs.componentVersion = 'dev'
+    } else {
+      const error = new Error(
+        `Unable to load component ${component}. Component name/version pair is invalid.`
+      )
+      error.name = 'invalidComponentReference'
+      throw error
+    }
+
+    if (!alias) {
+      const error = new Error(`Unable to load component ${component}. Missing alias argument.`)
+      error.name = 'missingComponentAlias'
+      throw error
+    }
+
+    runComponentInputs.name = `${this.name}.${alias}`
+
     const proxy = new Proxy(
       {},
       {
@@ -144,16 +168,16 @@ Component.handler = async (event = {}) => {
 
     throw error
   }
-  if (event.inputs.code && event.inputs.code.src) {
+  if (event.inputs.src) {
     const downloadDirectory = path.join(
       '/tmp',
       Math.random()
         .toString(36)
         .substring(6)
     )
-    fs.mkdirSync(downloadDirectory)
-    await getComponentCodeFiles(event.inputs.code.src, downloadDirectory)
-    event.inputs.code.src = downloadDirectory
+    await download(event.inputs.src, downloadDirectory, { extract: true })
+
+    event.inputs.src = downloadDirectory
   }
 
   return userComponent[event.method](event.inputs)
