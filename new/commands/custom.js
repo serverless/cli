@@ -4,6 +4,8 @@ const path = require('path')
 const globby = require('globby')
 const axios = require('axios')
 const fs = require('fs')
+const util = require('util')
+const exec = util.promisify(require('child_process').exec)
 const WebSocket = require('ws')
 const { runComponent, getComponentCodeFilesUrls } = require('@serverless/client')()
 const { getConfig, resolveConfig, fileExistsSync } = require('../utils')
@@ -121,13 +123,34 @@ const putComponentCodeFiles = async (files, uploadDirectory) => {
   return Promise.all(promises)
 }
 
-const resolveComponentCodeFiles = async (inputs) => {
-  if (!inputs || !inputs.code || !inputs.code.src) {
-    return inputs
+const resolveComponentCodeFiles = async (inputs, cli) => {
+
+  let uploadDirectoryPath
+
+  if (typeof inputs.src === 'object' && inputs.src.hook && inputs.src.dist) {
+    // First run the build hook, if "hook" and "dist" are specified
+    cli.status('Building Code')
+    const options = { cwd: inputs.src.src }
+    try {
+      await exec(inputs.src.hook, { cwd: inputs.src.src })
+    } catch (err) {
+      console.error(err.stderr) // eslint-disable-line
+      throw new Error(
+        `Failed building website via "${inputs.src.hook}" due to the following error: "${err.stderr}"`
+      )
+    }
+    uploadDirectoryPath = path.resolve(inputs.src.dist)
+  } else if (typeof inputs.src === 'object' && inputs.src.src) {
+    uploadDirectoryPath = path.resolve(inputs.src.src)
+  } else if (typeof inputs.src === 'string') {
+    uploadDirectoryPath = path.resolve(inputs.src)
+  } else {
+    throw new Error(
+      `Invalid "inputs.src".  Value must be a string or object.`
+    )
   }
 
-  const uploadDirectoryPath = path.resolve(inputs.code.src)
-
+  cli.status('Uploading Code')
   const patterns = ['**', '!node_modules']
   const files = (await globby(patterns, { cwd: uploadDirectoryPath }))
     .sort()
@@ -141,7 +164,7 @@ const resolveComponentCodeFiles = async (inputs) => {
 
   await putComponentCodeFiles(res.files, uploadDirectoryPath)
 
-  inputs.code.src = res.files
+  inputs.src.src = res.files
 
   return inputs
 }
@@ -216,9 +239,8 @@ const getComponentInstanceData = async (cli) => {
     data.componentVersion = 'dev'
   }
 
-  if (inputs && inputs.code && inputs.code.src) {
-    cli.status('Uploading Code')
-    data.inputs = await resolveComponentCodeFiles(inputs)
+  if (inputs && inputs.src) {
+    data.inputs = await resolveComponentCodeFiles(inputs, cli)
   }
 
   return data
