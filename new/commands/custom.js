@@ -129,7 +129,7 @@ const resolveComponentCodeFiles = async (inputs, cli) => {
 
   if (typeof inputs.src === 'object' && inputs.src.hook && inputs.src.dist) {
     // First run the build hook, if "hook" and "dist" are specified
-    cli.status('Building Code')
+    cli.status('Building')
     const options = { cwd: inputs.src.src }
     try {
       await exec(inputs.src.hook, { cwd: inputs.src.src })
@@ -150,7 +150,7 @@ const resolveComponentCodeFiles = async (inputs, cli) => {
     )
   }
 
-  cli.status('Uploading Code')
+  cli.status('Uploading')
   const patterns = ['**', '!node_modules']
   const files = (await globby(patterns, { cwd: uploadDirectoryPath }))
     .sort()
