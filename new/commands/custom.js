@@ -201,7 +201,6 @@ const resolveComponentSrcInput = async (inputs, cli) => {
     try {
       await exec(inputs.src.hook, options)
     } catch (err) {
-      // console.error(err.stdout) // eslint-disable-line
       throw new Error(
         `Failed building website via "${inputs.src.hook}" due to the following error: "${err.stderr}"
         ${err.stdout}`
