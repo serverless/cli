@@ -1,8 +1,16 @@
 const path = require('path')
 const axios = require('axios')
+const { contains, isNil, last, split } = require('ramda')
+const globby = require('globby')
+const AdmZip = require('adm-zip')
 const download = require('download')
 const fs = require('fs')
-const { saveComponentState, sendToConnection, runComponent } = require('@serverless/client')()
+const {
+  saveComponentState,
+  sendToConnection,
+  runComponent,
+  getPackageUrls
+} = require('@serverless/client')()
 
 const getComponentCodeFile = async (file, downloadDirectory) => {
   const instance = axios.create()
@@ -25,6 +33,74 @@ const getComponentCodeFiles = async (files, downloadDirectory) => {
   }
 
   return Promise.all(promises)
+}
+
+const pack = async (inputDirPath, outputFilePath, socket, include = [], exclude = []) => {
+  const format = last(split('.', outputFilePath))
+
+  if (!contains(format, ['zip', 'tar'])) {
+    throw new Error('Please provide a valid format. Either a "zip" or a "tar"')
+  }
+
+  const patterns = ['**']
+
+  if (!isNil(exclude)) {
+    exclude.forEach((excludedItem) => patterns.push(`!${excludedItem}`))
+  }
+
+  const zip = new AdmZip()
+
+  const files = (await globby(patterns, { cwd: inputDirPath })).sort()
+
+  files.map((file) => {
+    if (file === path.basename(file)) {
+      zip.addLocalFile(path.join(inputDirPath, file))
+    } else {
+      zip.addLocalFile(path.join(inputDirPath, file), path.dirname(file))
+    }
+  })
+
+  if (!isNil(include)) {
+    include.forEach((file) => zip.addLocalFile(path.join(inputDirPath, file)))
+  }
+
+  zip.writeZip(outputFilePath)
+
+  return outputFilePath
+}
+
+const putPackage = async (packagePath, packageUploadUrl) => {
+  const instance = axios.create()
+  instance.defaults.headers.common = {}
+  instance.defaults.headers.put = {}
+  const body = fs.readFileSync(packagePath)
+  // todo handle errors
+  try {
+    await instance.put(packageUploadUrl, body)
+  } catch (e) {
+    throw e
+  }
+}
+
+const uploadComponentSrc = async (src, socket) => {
+  const packagePath = path.join(
+    '/tmp',
+    `${Math.random()
+      .toString(36)
+      .substring(6)}.zip`
+  )
+
+  await sendToConnection({ socket, event: 'debug', data: 'Packaging from lambda' })
+
+  const res = await Promise.all([getPackageUrls(), pack(src, packagePath, socket)])
+
+  const packageUrls = res[0]
+
+  await putPackage(packagePath, packageUrls.upload)
+
+  await sendToConnection({ socket, event: 'debug', data: 'Package uploaded from lambda' })
+
+  return packageUrls.download
 }
 
 class Component {
@@ -136,14 +212,20 @@ class Component {
 
     runComponentInputs.name = `${this.name}.${alias}`
 
+    const socket = this.socket
+
     const proxy = new Proxy(
       {},
       {
         get: (obj, method) => {
           const runChildComponent = async (inputs = {}) => {
+            if (inputs.src) {
+              inputs.src = await uploadComponentSrc(inputs.src, socket)
+            }
             runComponentInputs.method = method
             runComponentInputs.inputs = inputs
             return runComponent(runComponentInputs)
+            // return uploadComponentSrc(inputs.src, socket)
           }
 
           return runChildComponent

@@ -146,12 +146,12 @@ const pack = async (inputDirPath, outputFilePath, cli, include = [], exclude = [
     if (file === path.basename(file)) {
       zip.addLocalFile(path.join(inputDirPath, file))
     } else {
-      zip.addLocalFile(path.join(inputDirPath, file), file)
+      zip.addLocalFile(path.join(inputDirPath, file), path.dirname(file))
     }
   })
 
   if (!isNil(include)) {
-    include.forEach((file) => zip.addLocalFile(file))
+    include.forEach((file) => zip.addLocalFile(path.join(inputDirPath, file)))
   }
 
   zip.writeZip(outputFilePath)

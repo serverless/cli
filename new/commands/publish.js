@@ -27,9 +27,9 @@ const pack = async (inputDirPath, outputFilePath, include = [], exclude = []) =>
 
   files.map((file) => {
     if (file === path.basename(file)) {
-      zip.addLocalFile(file)
+      zip.addLocalFile(path.join(inputDirPath, file))
     } else {
-      zip.addLocalFile(file, file)
+      zip.addLocalFile(path.join(inputDirPath, file), path.dirname(file))
     }
   })
 
