@@ -1,51 +1,19 @@
 const args = require('minimist')(process.argv.slice(2))
 const axios = require('axios')
 const path = require('path')
-const globby = require('globby')
-const AdmZip = require('adm-zip')
-const { contains, isNil, last, split } = require('ramda')
 const { tmpdir } = require('os')
 const fs = require('fs')
-const { getConfig } = require('../utils')
-
-const pack = async (inputDirPath, outputFilePath, include = [], exclude = []) => {
-  const format = last(split('.', outputFilePath))
-
-  if (!contains(format, ['zip', 'tar'])) {
-    throw new Error('Please provide a valid format. Either a "zip" or a "tar"')
-  }
-
-  const patterns = ['**']
-
-  if (!isNil(exclude)) {
-    exclude.forEach((excludedItem) => patterns.push(`!${excludedItem}`))
-  }
-
-  const zip = new AdmZip()
-
-  const files = (await globby(patterns, { cwd: inputDirPath })).sort()
-
-  files.map((file) => {
-    if (file === path.basename(file)) {
-      zip.addLocalFile(path.join(inputDirPath, file))
-    } else {
-      zip.addLocalFile(path.join(inputDirPath, file), path.dirname(file))
-    }
-  })
-
-  if (!isNil(include)) {
-    include.forEach((file) => zip.addLocalFile(file))
-  }
-
-  zip.writeZip(outputFilePath)
-
-  return outputFilePath
-}
+const { getConfig, pack } = require('../utils')
 
 const getComponentUploadUrl = async (serverlessComponentFile) => {
   const url = `https://y6w6rsjkib.execute-api.us-east-1.amazonaws.com/dev/component/${serverlessComponentFile.name}`
   const data = JSON.stringify(serverlessComponentFile)
   const serverlessAccessKey = process.env.SERVERLESS_ACCESS_KEY
+
+  if (!serverlessAccessKey) {
+    throw new Error('SERVERLESS_ACCESS_KEY env var not found')
+  }
+
   const headers = {
     Authorization: `Bearer ${serverlessAccessKey}`,
     'serverless-org-name': serverlessComponentFile.org,
@@ -60,11 +28,12 @@ const getComponentUploadUrl = async (serverlessComponentFile) => {
     })
     return res.data
   } catch (e) {
-    if (e.response.status !== 200) {
+    if (e.response && e.response.status !== 200) {
       throw new Error(
         `${e.response.status} ${e.response.statusText || ''} ${e.response.data.message || ''}`
       )
     }
+    throw e
   }
 }
 
@@ -88,9 +57,6 @@ const putComponentPackage = async (componentPackagePath, componentUploadUrl) => 
  */
 
 const validateComponentDefinition = async (serverlessComponentFile) => {
-  if (!serverlessComponentFile) {
-    throw new Error('serverless.component.yml not found in the current working directory')
-  }
   if (!serverlessComponentFile.name) {
     throw new Error('"name" is required in serverless.component.yml.')
   }
@@ -105,6 +71,10 @@ const validateComponentDefinition = async (serverlessComponentFile) => {
 module.exports = async (cli) => {
   const serverlessComponentFile = getConfig('serverless.component')
 
+  if (!serverlessComponentFile) {
+    throw new Error(`serverless.component.yml file not found in the current working directory`)
+  }
+
   validateComponentDefinition(serverlessComponentFile)
 
   let cliEntity = serverlessComponentFile.name
@@ -117,27 +87,30 @@ module.exports = async (cli) => {
     cliEntity = `${serverlessComponentFile.name}@dev`
   }
 
-  cli.status(`publishing`, cliEntity)
+  cli.status(`Publishing`, cliEntity)
 
-  cli.debug(`getting upload url`)
-
-  const componentUploadUrl = await getComponentUploadUrl(serverlessComponentFile)
-
-  const inputDirPath = process.cwd()
-  const outputFilePath = path.join(
+  const componentDirectoryPath = process.cwd()
+  const componentPackagePath = path.join(
     tmpdir(),
     `${Math.random()
       .toString(36)
       .substring(6)}.zip`
   )
 
-  cli.debug(`packaging component from ${inputDirPath}`)
-  const componentPackagePath = await pack(inputDirPath, outputFilePath)
-  cli.debug(`component packaged into ${outputFilePath}`)
+  cli.debug(`Packaging component from ${componentDirectoryPath}`)
 
-  cli.debug(`uploading component package`)
+  const res = await Promise.all([
+    getComponentUploadUrl(serverlessComponentFile),
+    pack(componentDirectoryPath, componentPackagePath)
+  ])
+
+  const componentUploadUrl = res[0]
+
+  cli.debug(`Component packaged into ${componentPackagePath}`)
+
+  cli.debug(`Uploading component package`)
   await putComponentPackage(componentPackagePath, componentUploadUrl)
-  cli.debug(`component package uploaded`)
+  cli.debug(`Component package uploaded`)
 
-  cli.close('done', 'published')
+  cli.close('done', 'Published')
 }

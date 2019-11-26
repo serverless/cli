@@ -1,21 +1,19 @@
 const args = require('minimist')(process.argv.slice(2))
 const dotenv = require('dotenv')
 const path = require('path')
-const globby = require('globby')
 const axios = require('axios')
 const { tmpdir } = require('os')
-const download = require('download')
 const fs = require('fs')
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
 const WebSocket = require('ws')
-const { runComponent, getComponentCodeFilesUrls, getPackageUrls } = require('@serverless/client')()
+const { runComponent, getPackageUrls } = require('@serverless/client')()
 const { getConfig, resolveConfig, fileExistsSync, pack } = require('../utils')
 
 const connect = async (cli) => {
-  // if (!cli.debugMode) {
-  //   return
-  // }
+  if (!cli.debugMode) {
+    return
+  }
 
   cli.status('Connecting')
   const url = 'wss://jvwqjke37i.execute-api.us-east-1.amazonaws.com/dev' // todo change to prod
@@ -102,29 +100,6 @@ const getCredentials = () => {
   return credentials
 }
 
-const putComponentCodeFile = async (file, uploadDirectory) => {
-  const uploadDirectoryPath = path.resolve(uploadDirectory)
-  const instance = axios.create()
-  instance.defaults.headers.common = {}
-  instance.defaults.headers.put = {}
-  const body = fs.readFileSync(path.join(uploadDirectoryPath, file.relativePath))
-  // todo handle errors
-  try {
-    await instance.put(file.uploadUrl, body)
-  } catch (e) {
-    throw e
-  }
-}
-
-const putComponentCodeFiles = async (files, uploadDirectory) => {
-  const promises = []
-  for (const file of files) {
-    promises.push(putComponentCodeFile(file, uploadDirectory))
-  }
-
-  return Promise.all(promises)
-}
-
 const putPackage = async (packagePath, packageUploadUrl) => {
   const instance = axios.create()
   instance.defaults.headers.common = {}
@@ -133,36 +108,6 @@ const putPackage = async (packagePath, packageUploadUrl) => {
   // todo handle errors
   try {
     await instance.put(packageUploadUrl, body)
-  } catch (e) {
-    throw e
-  }
-}
-
-const downloadPackge = async (packageDownloadUrl) => {
-  const outputDirectory = path.join(
-    process.cwd(),
-    `${Math.random()
-      .toString(36)
-      .substring(6)}`
-  )
-  await download(packageDownloadUrl, outputDirectory, { extract: true })
-}
-
-const getPackage = async (packageDownloadUrl) => {
-  const outputFilePath = path.join(
-    process.cwd(),
-    `${Math.random()
-      .toString(36)
-      .substring(6)}.zip`
-  )
-  const instance = axios.create()
-  instance.defaults.headers.common = {}
-  instance.defaults.headers.get = {}
-  // todo handle errors
-  try {
-    const res = await instance.get(packageDownloadUrl)
-
-    fs.writeFileSync(outputFilePath, res.data)
   } catch (e) {
     throw e
   }
@@ -177,20 +122,18 @@ const uploadComponentSrc = async (src, cli) => {
   )
 
   cli.debug(`packaging from ${src} into ${packagePath}`)
-
   cli.status('Packaging')
 
-  const res = await Promise.all([getPackageUrls(), pack(src, packagePath, cli)])
+  const res = await Promise.all([getPackageUrls(), pack(src, packagePath)])
 
   const packageUrls = res[0]
 
   cli.status('Uploading')
   cli.debug(`uploading ${packagePath} to ${packageUrls.upload.split('?')[0]}`)
   await putPackage(packagePath, packageUrls.upload)
-  cli.debug(`uploading completed`)
+  cli.debug(`upload completed`)
 
   return packageUrls.download
-  // await downloadPackge(packageUrls.download)
 }
 
 const resolveComponentSrcInput = async (inputs, cli) => {
@@ -222,31 +165,12 @@ const resolveComponentSrcInput = async (inputs, cli) => {
   return inputs
 }
 
-const getComponentCodeFile = async (file, downloadDirectory) => {
-  const instance = axios.create()
-  instance.defaults.headers.common = {}
-  instance.defaults.headers.get = {}
-  // todo handle errors
-  try {
-    const res = await instance.get(file.downloadUrl)
-
-    fs.writeFileSync(path.join(downloadDirectory, file.relativePath), res.data)
-  } catch (e) {
-    throw e
-  }
-}
-
-const getComponentCodeFiles = async (files, downloadDirectory) => {
-  const promises = []
-  for (const file of files) {
-    promises.push(getComponentCodeFile(file, downloadDirectory))
-  }
-
-  return Promise.all(promises)
-}
-
 const getComponentInstanceData = async (cli) => {
   const serverlessFile = getConfig('serverless')
+
+  if (!serverlessFile) {
+    throw new Error(`serverless.yml file not found in the current working directory`)
+  }
 
   const resolvedServerlessFile = resolveConfig(serverlessFile)
 

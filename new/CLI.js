@@ -205,13 +205,13 @@ class CLI {
   }
 
   renderError(error, entity) {
-    if (typeof error === 'string') {
-      error = new Error(error)
-    }
-
     // If no argument, skip
     if (!error || error === '') {
       return
+    }
+
+    if (typeof error === 'string') {
+      error = new Error(error)
     }
 
     // Clear any existing content
@@ -225,6 +225,8 @@ class CLI {
     } else {
       console.log(`  ${red('error:')}`) // eslint-disable-line
     }
+
+    delete error.name
     console.log(` `, error) // eslint-disable-line
 
     // Put cursor to starting position for next view

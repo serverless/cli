@@ -122,7 +122,7 @@ const isComponentsProject = () => {
 
 const sleep = async (wait) => new Promise((resolve) => setTimeout(() => resolve(), wait))
 
-const pack = async (inputDirPath, outputFilePath, cli, include = [], exclude = []) => {
+const pack = async (inputDirPath, outputFilePath, include = [], exclude = []) => {
   const format = last(split('.', outputFilePath))
 
   if (!contains(format, ['zip', 'tar'])) {
@@ -137,12 +137,9 @@ const pack = async (inputDirPath, outputFilePath, cli, include = [], exclude = [
 
   const zip = new AdmZip()
 
-  cli.debug(`listing files in ${inputDirPath}`)
-
   const files = (await globby(patterns, { cwd: inputDirPath })).sort()
 
   files.map((file) => {
-    cli.debug(`adding file ${file}`)
     if (file === path.basename(file)) {
       zip.addLocalFile(path.join(inputDirPath, file))
     } else {
