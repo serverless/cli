@@ -240,5 +240,5 @@ module.exports = async (cli) => {
 
   cli.outputs(outputs)
 
-  cli.close('done', 'Deployed')
+  cli.close('done', 'Done')
 }
