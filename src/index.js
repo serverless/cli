@@ -130,6 +130,7 @@ const watch = (component, inputs, method, context) => {
         component = new Component(undefined, context)
         await component.init()
 
+        component.context.instance._.startTime = Date.now()
         component.context.instance._.seconds = 0
         if (method) {
           outputs = await component[method](inputs)
@@ -138,6 +139,7 @@ const watch = (component, inputs, method, context) => {
         }
         // check if another operation is queued
         if (queuedOperation) {
+          component.context.instance._.startTime = Date.now()
           component.context.instance._.seconds = 0
           if (method) {
             outputs = await component[method](inputs)

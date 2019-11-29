@@ -34,6 +34,7 @@ class CLI {
     this._ = {}
     this._.entity = 'Components'
     this._.useTimer = true
+    this._.startTime = Date.now()
     this._.seconds = 0
     // Status defaults
     this._.status = {}
@@ -55,7 +56,7 @@ class CLI {
 
     // Count seconds
     setInterval(() => {
-      this._.seconds++
+      this._.seconds = Math.floor((Date.now() - this._.startTime) / 1000)
     }, 1000)
   }
 
