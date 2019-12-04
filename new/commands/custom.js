@@ -7,7 +7,7 @@ const fs = require('fs')
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
 const WebSocket = require('ws')
-const { runComponent, getPackageUrls } = require('@serverless/client')()
+const { runComponent, getPackageUrls } = require('../engine')
 const { getConfig, resolveConfig, fileExistsSync, pack } = require('../utils')
 
 const connect = async (cli) => {
@@ -16,7 +16,7 @@ const connect = async (cli) => {
   }
 
   cli.status('Connecting')
-  const url = 'wss://jvwqjke37i.execute-api.us-east-1.amazonaws.com/dev' // todo change to prod
+  const url = 'wss://kiexxv95i8.execute-api.us-east-1.amazonaws.com/dev' // todo change to prod
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url)
     ws.on('open', () => {
@@ -113,7 +113,7 @@ const putPackage = async (packagePath, packageUploadUrl) => {
   }
 }
 
-const uploadComponentSrc = async (src, cli) => {
+const uploadComponentSrc = async (src, accessKey, org, cli) => {
   const packagePath = path.join(
     tmpdir(),
     `${Math.random()
@@ -124,7 +124,7 @@ const uploadComponentSrc = async (src, cli) => {
   cli.debug(`packaging from ${src} into ${packagePath}`)
   cli.status('Packaging')
 
-  const res = await Promise.all([getPackageUrls(), pack(src, packagePath)])
+  const res = await Promise.all([getPackageUrls({ accessKey, org }), pack(src, packagePath)])
 
   const packageUrls = res[0]
 
@@ -136,7 +136,7 @@ const uploadComponentSrc = async (src, cli) => {
   return packageUrls.download
 }
 
-const resolveComponentSrcInput = async (inputs, cli) => {
+const resolveComponentSrcInput = async (inputs, accessKey, org, cli) => {
   let uploadDirectoryPath
 
   if (typeof inputs.src === 'object' && inputs.src.hook && inputs.src.dist) {
@@ -160,7 +160,7 @@ const resolveComponentSrcInput = async (inputs, cli) => {
     throw new Error(`Invalid "inputs.src".  Value must be a string or object.`)
   }
 
-  inputs.src = await uploadComponentSrc(uploadDirectoryPath, cli)
+  inputs.src = await uploadComponentSrc(uploadDirectoryPath, accessKey, org, cli)
 
   return inputs
 }
@@ -217,7 +217,7 @@ const getComponentInstanceData = async (cli) => {
   }
 
   if (inputs && inputs.src) {
-    data.inputs = await resolveComponentSrcInput(inputs, cli)
+    data.inputs = await resolveComponentSrcInput(inputs, data.accessKey, data.org, cli)
   }
 
   return data

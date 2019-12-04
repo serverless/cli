@@ -5,6 +5,7 @@ const globby = require('globby')
 const AdmZip = require('adm-zip')
 const download = require('download')
 const fs = require('fs')
+const fse = require('fs-extra')
 const {
   saveComponentState,
   sendToConnection,
@@ -262,8 +263,14 @@ Component.handler = async (event = {}) => {
     event.inputs.src = downloadDirectory
   }
 
-  return userComponent[event.method](event.inputs)
-  // todo clear tmp dir
+  const outputs = await userComponent[event.method](event.inputs)
+
+  // clear tmp code dir
+  if (event.inputs.src) {
+    fse.removeSync(event.inputs.src)
+  }
+
+  return outputs
 }
 
 module.exports = Component
