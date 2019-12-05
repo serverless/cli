@@ -1,31 +1,29 @@
+const args = require('minimist')(process.argv.slice(2))
 const cliVersion = require('../package.json').version
-const coreVersion = require('@serverless/core/package.json').version
-const { getServerlessFile, isComponentsFile, shouldRunInCloud } = require('./utils')
-const runComponentLocally = require('./local')
-const runComponentInCloud = require('./cloud')
+const { isComponentsProject } = require('./utils')
+const commands = require('./commands')
+const CLI = require('./CLI')
 
-const runningComponents = () => {
-  const serverlessFile = getServerlessFile(process.cwd())
+// keeping it backward compatible
+const runningComponents = () => isComponentsProject()
 
-  if (serverlessFile && isComponentsFile(serverlessFile)) {
-    return true
+const runComponents = async () => {
+  const command = args._[0]
+  const debug = args.debug ? true : false
+  const cli = new CLI({ debug, command })
+
+  try {
+    if (commands[command]) {
+      await commands[command](cli)
+    } else {
+      await commands.custom(cli)
+    }
+  } catch (e) {
+    cli.error(e)
   }
-
-  return false
 }
 
-const runComponents = async (serverlessFileArg) => {
-  const serverlessFile = serverlessFileArg || getServerlessFile(process.cwd())
-
-  if (!serverlessFile || !isComponentsFile(serverlessFile)) {
-    return
-  }
-
-  if (shouldRunInCloud(serverlessFile)) {
-    return runComponentInCloud(serverlessFile)
-  }
-
-  return runComponentLocally(serverlessFile)
-}
-
-module.exports = { runningComponents, runComponents, cliVersion, coreVersion }
+// TODO I removed the core version because the core has moved to
+// a backend layer. We need to remove that from the Framework V1
+// otherwise it'll break
+module.exports = { runningComponents, runComponents, cliVersion }

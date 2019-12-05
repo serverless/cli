@@ -3,10 +3,8 @@ const chalk = require('chalk')
 const ansiEscapes = require('ansi-escapes')
 const stripAnsi = require('strip-ansi')
 const figures = require('figures')
-const dotenv = require('dotenv')
-const path = require('path')
 const prettyoutput = require('prettyoutput')
-const { utils } = require('@serverless/core')
+const { sleep } = require('./utils')
 const packageJson = require('../package.json')
 
 // Serverless Components CLI Colors
@@ -16,24 +14,15 @@ const red = chalk.rgb(255, 93, 93)
 
 class CLI {
   constructor(config = {}) {
+    this.command = config.command
     this.version = packageJson.version
-    this.root = config.root ? path.resolve(config.root) : process.cwd()
-    this.stateRoot = config.stateRoot
-      ? path.resolve(config.stateRoot)
-      : path.join(this.root, '.serverless')
-
-    this.credentials = config.credentials || {}
     this.debugMode = config.debug || false
-    this.state = { id: utils.randomId() }
-    this.id = this.state.id
-
-    // todo remove later when we update components
-    this.outputs = {}
 
     // Defaults
     this._ = {}
-    this._.entity = 'Components'
+    this._.entity = 'Serverless'
     this._.useTimer = true
+    this._.startTime = Date.now()
     this._.seconds = 0
     // Status defaults
     this._.status = {}
@@ -55,97 +44,8 @@ class CLI {
 
     // Count seconds
     setInterval(() => {
-      this._.seconds++
+      this._.seconds = Math.floor((Date.now() - this._.startTime) / 1000)
     }, 1000)
-  }
-
-  async init() {
-    const contextStatePath = path.join(this.stateRoot, `_.json`)
-
-    if (await utils.fileExists(contextStatePath)) {
-      this.state = await utils.readFile(contextStatePath)
-    } else {
-      await utils.writeFile(contextStatePath, this.state)
-    }
-    this.id = this.state.id
-
-    await this.setCredentials()
-  }
-
-  resourceId() {
-    return `${this.id}-${utils.randomId()}`
-  }
-
-  async readState(id) {
-    const stateFilePath = path.join(this.stateRoot, `${id}.json`)
-    if (await utils.fileExists(stateFilePath)) {
-      return utils.readFile(stateFilePath)
-    }
-    return {}
-  }
-
-  async writeState(id, state) {
-    const stateFilePath = path.join(this.stateRoot, `${id}.json`)
-    await utils.writeFile(stateFilePath, state)
-    return state
-  }
-
-  async setCredentials() {
-    // Load env vars
-    let envVars = {}
-    const defaultEnvFilePath = path.join(this.root, `.env`)
-    const stageEnvFilePath = path.join(this.root, `.env.dev`) // todo remove this
-    if (await utils.fileExists(stageEnvFilePath)) {
-      envVars = dotenv.config({ path: path.resolve(stageEnvFilePath) }).parsed || {}
-    } else if (await utils.fileExists(defaultEnvFilePath)) {
-      envVars = dotenv.config({ path: path.resolve(defaultEnvFilePath) }).parsed || {}
-    }
-
-    // Known Provider Environment Variables and their SDK configuration properties
-    const providers = {}
-
-    // AWS
-    providers.aws = {}
-    providers.aws.AWS_ACCESS_KEY_ID = 'accessKeyId'
-    providers.aws.AWS_SECRET_ACCESS_KEY = 'secretAccessKey'
-    providers.aws.AWS_REGION = 'region'
-
-    // Google
-    providers.google = {}
-    providers.google.GOOGLE_APPLICATION_CREDENTIALS = 'applicationCredentials'
-    providers.google.GOOGLE_PROJECT_ID = 'projectId'
-    providers.google.GOOGLE_CLIENT_EMAIL = 'clientEmail'
-    providers.google.GOOGLE_PRIVATE_KEY = 'privateKey'
-
-    const credentials = {}
-
-    for (const provider in providers) {
-      const providerEnvVars = providers[provider]
-      for (const providerEnvVar in providerEnvVars) {
-        if (!envVars.hasOwnProperty(providerEnvVar)) {
-          continue
-        }
-        if (!credentials[provider]) {
-          credentials[provider] = {}
-        }
-        credentials[provider][providerEnvVars[providerEnvVar]] = envVars[providerEnvVar]
-      }
-    }
-
-    this.credentials = credentials
-
-    return credentials
-  }
-
-  close(reason, message) {
-    // Skip if not active
-    process.stdout.write(ansiEscapes.cursorShow)
-    if (!this.isStatusEngineActive()) {
-      console.log() // eslint-disable-line
-      process.exit(0)
-      return
-    }
-    return this.statusEngineStop(reason, message)
   }
 
   getRelativeVerticalCursorPosition(contentString) {
@@ -158,7 +58,7 @@ class CLI {
 
   async statusEngine() {
     this.renderStatus()
-    await utils.sleep(100)
+    await sleep(100)
     if (this.isStatusEngineActive()) {
       return this.statusEngine()
     }
@@ -187,7 +87,7 @@ class CLI {
       message = red('canceled')
     }
     if (reason === 'done') {
-      message = green('done')
+      message = green(message || 'done')
     }
 
     // Clear any existing content
@@ -281,7 +181,7 @@ class CLI {
 
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
-    console.log() // eslint-disable-line
+    // console.log() // eslint-disable-line
 
     console.log(`  ${msg}`) // eslint-disable-line
 
@@ -297,20 +197,20 @@ class CLI {
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
 
-    console.log(`  ${grey.bold(`DEBUG ${figures.line}`)} ${chalk.white(msg)}`) // eslint-disable-line
+    console.log(`  ${msg}`) // eslint-disable-line
 
     // Put cursor to starting position for next view
     process.stdout.write(ansiEscapes.cursorLeft)
   }
 
   renderError(error, entity) {
-    if (typeof error === 'string') {
-      error = new Error(error)
-    }
-
     // If no argument, skip
     if (!error || error === '') {
       return
+    }
+
+    if (typeof error === 'string') {
+      error = new Error(error)
     }
 
     // Clear any existing content
@@ -324,6 +224,8 @@ class CLI {
     } else {
       console.log(`  ${red('error:')}`) // eslint-disable-line
     }
+
+    delete error.name
     console.log(` `, error) // eslint-disable-line
 
     // Put cursor to starting position for next view
@@ -340,6 +242,17 @@ class CLI {
     process.stdout.write(prettyoutput(outputs, {}, 2)) // eslint-disable-line
   }
 
+  close(reason, message) {
+    // Skip if not active
+    process.stdout.write(ansiEscapes.cursorShow)
+    if (!this.isStatusEngineActive()) {
+      console.log() // eslint-disable-line
+      process.exit(0)
+      return
+    }
+    return this.statusEngineStop(reason, message)
+  }
+
   // basic CLI utilities
   log(msg) {
     this.renderLog(msg)
@@ -353,8 +266,14 @@ class CLI {
     this.renderStatus(status, entity)
   }
 
-  // todo remove
-  output() {}
+  error(e) {
+    this.renderError(e)
+    this.close('error', e)
+  }
+
+  outputs(outputs) {
+    return this.renderOutputs(outputs)
+  }
 }
 
 module.exports = CLI
