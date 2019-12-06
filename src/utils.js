@@ -21,7 +21,7 @@ const { merge, endsWith, contains, isNil, last, split } = require('ramda')
 
 const getEndpoints = () => {
   // todo change the default stage to be prod
-  let stage = 'dev'
+  let stage = 'prod'
   if (process.env.SERVERLESS_PLATFORM_STAGE && process.env.SERVERLESS_PLATFORM_STAGE !== 'prod') {
     stage = 'dev'
   }
@@ -32,9 +32,8 @@ const getEndpoints = () => {
       socket: `wss://kiexxv95i8.execute-api.us-east-1.amazonaws.com/dev`
     },
     prod: {
-      // todo change prod endpoints
-      http: `https://y6w6rsjkib.execute-api.us-east-1.amazonaws.com/dev`,
-      socket: `wss://kiexxv95i8.execute-api.us-east-1.amazonaws.com/dev`
+      http: `https://foerm0pfil.execute-api.us-east-1.amazonaws.com/prod`,
+      socket: `wss://qtrusbzkq4.execute-api.us-east-1.amazonaws.com/prod`
     }
   }
 
