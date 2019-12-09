@@ -21,7 +21,6 @@ const { merge, endsWith, contains, isNil, last, split } = require('ramda')
 const cli = require('./cli')
 
 const getEndpoints = () => {
-  // todo change the default stage to be prod
   let stage = 'prod'
   if (process.env.SERVERLESS_PLATFORM_STAGE && process.env.SERVERLESS_PLATFORM_STAGE !== 'prod') {
     stage = 'dev'
@@ -336,6 +335,7 @@ const pack = async (inputDirPath, outputFilePath, include = [], exclude = []) =>
   return outputFilePath
 }
 
+// uploads a src input code package to the given upload URL
 const putPackage = async (packagePath, packageUploadUrl) => {
   const instance = axios.create()
   instance.defaults.headers.common = {}
@@ -349,6 +349,7 @@ const putPackage = async (packagePath, packageUploadUrl) => {
   }
 }
 
+// fetches signed upload/download url, uploads src code and returns download url
 const uploadComponentSrc = async (src, accessKey, org) => {
   const { getPackageUrls } = engine
 
@@ -374,6 +375,7 @@ const uploadComponentSrc = async (src, accessKey, org) => {
   return packageUrls.download
 }
 
+// Resolves any "src" inputs for that componnet and uploads its code
 const resolveComponentSrcInput = async (inputs, accessKey, org) => {
   let uploadDirectoryPath
 
@@ -403,16 +405,15 @@ const resolveComponentSrcInput = async (inputs, accessKey, org) => {
   return inputs
 }
 
+// Gets or creates an access key based on org
 const getOrCreateAccessKey = async (org) => {
   cli.status('Preparing')
 
   const userConfigFile = readConfigFile()
 
   // Verify config file
-  if (!userConfigFile ||
-    !userConfigFile.users ||
-    !userConfigFile.users[userConfigFile.userId]) {
-      cli.error(`Run 'serverless login' first to rapidly deploy your serverless application.`, true)
+  if (!userConfigFile || !userConfigFile.users || !userConfigFile.users[userConfigFile.userId]) {
+    cli.error(`Run 'serverless login' first to rapidly deploy your serverless application.`, true)
   }
 
   const user = userConfigFile.users[userConfigFile.userId]
@@ -459,11 +460,11 @@ const getComponentInstanceData = async (config) => {
     method: config.command,
     debugMode: config.debug,
     credentials: getCredentials(),
-    inputs: config.command === 'deploy' ? inputs : {}, // Inputs are only for the "deploy" command
+    inputs: config.command === 'deploy' ? inputs : {} // Inputs are only for the "deploy" command
   }
 
   // Support for specifying "org" and "app" like: app: "myOrg/myApp"
-  if (data.app.includes('/')) { 
+  if (data.app.includes('/')) {
     data.org = data.app.split('/')[0]
     data.app = data.app.split('/')[1]
   }

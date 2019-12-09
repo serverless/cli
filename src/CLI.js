@@ -13,7 +13,7 @@ const red = chalk.rgb(255, 93, 93)
 /**
  * CLI
  * - Controls the CLI experience in the framework.
- * - Once instantiated, it starts a single, long running process. 
+ * - Once instantiated, it starts a single, long running process.
  */
 class CLI {
   constructor() {}
@@ -34,7 +34,7 @@ class CLI {
     this._.timerSeconds = 0
     this._.loadingDots = ''
     this._.loadingDotCount = 0
-    
+
     // Hide cursor, to keep it clean
     process.stdout.write(ansiEscapes.cursorHide)
 
@@ -178,7 +178,7 @@ class CLI {
       process.stdout.write(ansiEscapes.cursorLeft)
 
       return this.close('error', `Error: ${error.message}`)
-    } else {
+    } 
       console.log() // eslint-disable-line
       console.log(``, red(error.stack)) // eslint-disable-line
 
@@ -186,7 +186,7 @@ class CLI {
       process.stdout.write(ansiEscapes.cursorLeft)
 
       return this.close('error', `Error: ${error.message}`)
-    }
+    
   }
 
   /**
@@ -202,10 +202,10 @@ class CLI {
     console.log() // eslint-disable-line
     process.stdout.write(
       prettyoutput(
-        outputs, 
+        outputs,
         {
           colors: {}
-        }, 
+        },
         0
       )
     ) // eslint-disable-line
@@ -222,7 +222,7 @@ class CLI {
     if (this._.debug) {
       // Print Status
       if (this._.status !== this._.lastStatus) {
-        let content = `${this._.timerSeconds}s - Status - ${this._.status}`
+        const content = `${this._.timerSeconds}s - Status - ${this._.status}`
         process.stdout.write(content + os.EOL)
         this._.lastStatus = '' + this._.status
       }

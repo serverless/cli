@@ -1,6 +1,7 @@
 const args = require('minimist')(process.argv.slice(2))
 const path = require('path')
 const { tmpdir } = require('os')
+const { getLoggedInUser } = require('@serverless/platform-sdk')
 const cli = require('../cli')
 const {
   getConfig,
@@ -11,10 +12,16 @@ const {
 } = require('../utils')
 
 module.exports = async () => {
+  const user = getLoggedInUser()
+
+  if (!user && !process.env.SERVERLESS_ACCESS_KEY) {
+    throw new Error(`You must be logged in to publish. Please run "serverless login" to login`)
+  }
+
   const serverlessComponentFile = getConfig('serverless.component')
 
   if (!serverlessComponentFile) {
-    throw new Error(`serverless.component.yml file not found in the current working directory`)
+    cli.error(`serverless.component.yml file not found in the current working directory`, true)
   }
 
   validateComponentDefinition(serverlessComponentFile)
@@ -24,7 +31,7 @@ module.exports = async () => {
   if (serverlessComponentFile.version) {
     cliEntity = `${serverlessComponentFile.name}@${serverlessComponentFile.version}`
   }
-  
+
   if (!serverlessComponentFile.version || args.dev) {
     serverlessComponentFile.version = 'dev'
     cliEntity = `${serverlessComponentFile.name}@dev`
