@@ -1,6 +1,7 @@
 const args = require('minimist')(process.argv.slice(2))
 const path = require('path')
 const { tmpdir } = require('os')
+const cli = require('../cli')
 const {
   getConfig,
   pack,
@@ -9,7 +10,7 @@ const {
   getComponentUploadUrl
 } = require('../utils')
 
-module.exports = async (cli) => {
+module.exports = async () => {
   const serverlessComponentFile = getConfig('serverless.component')
 
   if (!serverlessComponentFile) {
@@ -23,6 +24,7 @@ module.exports = async (cli) => {
   if (serverlessComponentFile.version) {
     cliEntity = `${serverlessComponentFile.name}@${serverlessComponentFile.version}`
   }
+  
   if (!serverlessComponentFile.version || args.dev) {
     serverlessComponentFile.version = 'dev'
     cliEntity = `${serverlessComponentFile.name}@dev`
@@ -30,13 +32,19 @@ module.exports = async (cli) => {
 
   cli.status(`Publishing`, cliEntity)
 
-  const componentDirectoryPath = process.cwd()
+  // Get Component path and temporary path for packaging
   const componentPackagePath = path.join(
     tmpdir(),
     `${Math.random()
       .toString(36)
       .substring(6)}.zip`
   )
+  let componentDirectoryPath
+  if (serverlessComponentFile.main) {
+    componentDirectoryPath = path.resolve(process.cwd(), serverlessComponentFile.main)
+  } else {
+    componentDirectoryPath = process.cwd()
+  }
 
   cli.debug(`Packaging component from ${componentDirectoryPath}`)
 

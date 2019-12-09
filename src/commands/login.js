@@ -1,16 +1,17 @@
+const cli = require('../cli')
 const { login } = require('@serverless/platform-sdk')
 
-module.exports = async (cli) => {
+module.exports = async (config) => {
   process.env.DISPLAY = true
 
-  cli.status('browser login', 'serverless')
+  // Disable timer
+  config.timer = false
+
+  cli.status('Logging in via browser')
 
   const res = await login()
-
   const { username } = res.users[res.userId]
 
-  // console.log(JSON.stringify(res, null, 4))
-
-  cli.status('logged in', username)
-  cli.close('done', `logged in`)
+  cli.status('Logged in')
+  cli.close('done', `Successfully logged into org "${username}"`)
 }
