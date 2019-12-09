@@ -18,6 +18,7 @@ const {
   createAccessKeyForTenant
 } = require('@serverless/platform-sdk')
 const { merge, endsWith, contains, isNil, last, split } = require('ramda')
+const cli = require('./cli')
 
 const getEndpoints = () => {
   // todo change the default stage to be prod
@@ -93,12 +94,12 @@ const engine = new Proxy(
   }
 )
 
-const connect = async (cli) => {
+const connect = async () => {
   if (!cli.debugMode) {
     return
   }
 
-  cli.status('Connecting')
+  cli.debug('Establishing streaming connection')
 
   const endpoints = getEndpoints()
 
@@ -348,7 +349,7 @@ const putPackage = async (packagePath, packageUploadUrl) => {
   }
 }
 
-const uploadComponentSrc = async (src, accessKey, org, cli) => {
+const uploadComponentSrc = async (src, accessKey, org) => {
   const { getPackageUrls } = engine
 
   const packagePath = path.join(
@@ -358,7 +359,7 @@ const uploadComponentSrc = async (src, accessKey, org, cli) => {
       .substring(6)}.zip`
   )
 
-  cli.debug(`packaging from ${src} into ${packagePath}`)
+  cli.debug(`Packaging from ${src} into ${packagePath}`)
   cli.status('Packaging')
 
   const res = await Promise.all([getPackageUrls({ accessKey, org }), pack(src, packagePath)])
@@ -366,14 +367,14 @@ const uploadComponentSrc = async (src, accessKey, org, cli) => {
   const packageUrls = res[0]
 
   cli.status('Uploading')
-  cli.debug(`uploading ${packagePath} to ${packageUrls.upload.split('?')[0]}`)
+  cli.debug(`Uploading ${packagePath} to ${packageUrls.upload.split('?')[0]}`)
   await putPackage(packagePath, packageUrls.upload)
-  cli.debug(`upload completed`)
+  cli.debug(`Upload completed`)
 
   return packageUrls.download
 }
 
-const resolveComponentSrcInput = async (inputs, accessKey, org, cli) => {
+const resolveComponentSrcInput = async (inputs, accessKey, org) => {
   let uploadDirectoryPath
 
   if (typeof inputs.src === 'object' && inputs.src.hook && inputs.src.dist) {
@@ -397,13 +398,22 @@ const resolveComponentSrcInput = async (inputs, accessKey, org, cli) => {
     throw new Error(`Invalid "inputs.src".  Value must be a string or object.`)
   }
 
-  inputs.src = await uploadComponentSrc(uploadDirectoryPath, accessKey, org, cli)
+  inputs.src = await uploadComponentSrc(uploadDirectoryPath, accessKey, org)
 
   return inputs
 }
 
 const getOrCreateAccessKey = async (org) => {
+  cli.status('Preparing')
+
   const userConfigFile = readConfigFile()
+
+  // Verify config file
+  if (!userConfigFile ||
+    !userConfigFile.users ||
+    !userConfigFile.users[userConfigFile.userId]) {
+      cli.error(`Run 'serverless login' first to rapidly deploy your serverless application.`, true)
+  }
 
   const user = userConfigFile.users[userConfigFile.userId]
 
@@ -418,7 +428,7 @@ const getOrCreateAccessKey = async (org) => {
   return user.dashboard.accessKeys[org]
 }
 
-const getComponentInstanceData = async (cli) => {
+const getComponentInstanceData = async (config) => {
   const serverlessFile = getConfig('serverless')
 
   if (!serverlessFile) {
@@ -427,7 +437,7 @@ const getComponentInstanceData = async (cli) => {
 
   const resolvedServerlessFile = resolveConfig(serverlessFile)
 
-  const { app, stage, name, component, inputs } = resolvedServerlessFile
+  const { org, app, stage, name, component, inputs } = resolvedServerlessFile
 
   if (typeof app === 'undefined') {
     throw new Error(`Missing "app" property in serverless.yml`)
@@ -441,21 +451,25 @@ const getComponentInstanceData = async (cli) => {
     throw new Error(`Missing "name" property in serverless.yml`)
   }
 
-  if (typeof app !== 'string' || app.split('/').length !== 2) {
-    throw new Error(`"${app}" is not a valid org/app`)
+  const data = {
+    org,
+    app,
+    stage: stage || 'dev', // Default to "dev" stage
+    name,
+    method: config.command,
+    debugMode: config.debug,
+    credentials: getCredentials(),
+    inputs: config.command === 'deploy' ? inputs : {}, // Inputs are only for the "deploy" command
   }
 
-  const data = {
-    org: app.split('/')[0],
-    app: app.split('/')[1],
-    stage: stage,
-    name,
-    method: cli.command,
-    debugMode: cli.debugMode,
-    credentials: getCredentials(),
-    accessKey: await getOrCreateAccessKey(app.split('/')[0]),
-    inputs
+  // Support for specifying "org" and "app" like: app: "myOrg/myApp"
+  if (data.app.includes('/')) { 
+    data.org = data.app.split('/')[0]
+    data.app = data.app.split('/')[1]
   }
+
+  // Get Serverless Framework access key
+  data.accessKey = await getOrCreateAccessKey(data.org)
 
   if (component.split('@').length === 2) {
     data.componentName = component.split('@')[0]
@@ -469,8 +483,8 @@ const getComponentInstanceData = async (cli) => {
     data.componentVersion = 'dev'
   }
 
-  if (inputs && inputs.src) {
-    data.inputs = await resolveComponentSrcInput(inputs, data.accessKey, data.org, cli)
+  if (data.inputs && data.inputs.src) {
+    data.inputs = await resolveComponentSrcInput(inputs, data.accessKey, data.org)
   }
 
   return data

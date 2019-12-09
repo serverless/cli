@@ -2,24 +2,28 @@ const args = require('minimist')(process.argv.slice(2))
 const cliVersion = require('../package.json').version
 const { isComponentsProject } = require('./utils')
 const commands = require('./commands')
-const CLI = require('./CLI')
+const cli = require('./cli')
 
-// keeping it backward compatible
+// Keeping it backward compatible
 const runningComponents = () => isComponentsProject()
 
 const runComponents = async () => {
-  const command = args._[0]
-  const debug = args.debug ? true : false
-  const cli = new CLI({ debug, command })
+  const config = {}
+  config.command = args._[0] || 'deploy'
+  config.debug = args.debug ? true : false
+  config.timer = commands[config.command] ? false : true
+
+  // Start CLI process
+  cli.start(config)
 
   try {
-    if (commands[command]) {
-      await commands[command](cli)
+    if (commands[config.command]) {
+      await commands[config.command](config)
     } else {
-      await commands.custom(cli)
+      await commands.custom(config)
     }
   } catch (e) {
-    cli.error(e)
+    return cli.error(e)
   }
 }
 

@@ -4,90 +4,72 @@ const ansiEscapes = require('ansi-escapes')
 const stripAnsi = require('strip-ansi')
 const figures = require('figures')
 const prettyoutput = require('prettyoutput')
-const { sleep } = require('./utils')
-const packageJson = require('../package.json')
 
-// Serverless Components CLI Colors
+// CLI Colors
 const grey = chalk.dim
 const green = chalk.rgb(0, 253, 88)
 const red = chalk.rgb(255, 93, 93)
 
+/**
+ * CLI
+ * - Controls the CLI experience in the framework.
+ * - Once instantiated, it starts a single, long running process. 
+ */
 class CLI {
-  constructor(config = {}) {
-    this.command = config.command
-    this.version = packageJson.version
-    this.debugMode = config.debug || false
+  constructor() {}
 
+  /**
+   * Start
+   * - Starts the CLI process
+   */
+  start(config = {}) {
     // Defaults
     this._ = {}
     this._.entity = 'Serverless'
-    this._.useTimer = true
-    this._.startTime = Date.now()
-    this._.seconds = 0
-    // Status defaults
-    this._.status = {}
-    this._.status.running = false
-    this._.status.message = 'Running'
-    this._.status.loadingDots = ''
-    this._.status.loadingDotCount = 0
-
-    // Hide cursor always, to keep it clean
+    this._.status = 'Initializing'
+    this._.lastStatus = null
+    this._.debug = config.debug || false
+    this._.timer = config.timer || false
+    this._.timerStarted = Date.now()
+    this._.timerSeconds = 0
+    this._.loadingDots = ''
+    this._.loadingDotCount = 0
+    
+    // Hide cursor, to keep it clean
     process.stdout.write(ansiEscapes.cursorHide)
 
-    // Event Handler: Control + C
-    process.on('SIGINT', async () => {
-      if (this.isStatusEngineActive()) {
-        return this.statusEngineStop('cancel')
-      }
-      process.exit(1)
-    })
-
-    // Count seconds
-    setInterval(() => {
-      this._.seconds = Math.floor((Date.now() - this._.startTime) / 1000)
-    }, 1000)
-  }
-
-  getRelativeVerticalCursorPosition(contentString) {
-    const base = 1
-    const terminalWidth = process.stdout.columns
-    const contentWidth = stripAnsi(contentString).length
-    const nudges = Math.ceil(Number(contentWidth) / Number(terminalWidth))
-    return base + nudges
-  }
-
-  async statusEngine() {
-    this.renderStatus()
-    await sleep(100)
-    if (this.isStatusEngineActive()) {
-      return this.statusEngine()
-    }
-  }
-
-  isStatusEngineActive() {
-    return this._.status.running
-  }
-
-  statusEngineStart() {
-    if (this.debugMode) {
+    if (this._.debug) {
+      // Create a white space immediately
       this.log()
     }
-    this._.status.running = true
-    // Start Status engine
-    return this.statusEngine()
+
+    // Start counting seconds
+    setInterval(() => {
+      this._.timerSeconds = Math.floor((Date.now() - this._.timerStarted) / 1000)
+    }, 1000)
+
+    // Set Event Handler: Control + C to cancel session
+    process.on('SIGINT', async () => {
+      return this.close('cancel')
+    })
+
+    // Start render engine
+    return this._renderEngine()
   }
 
-  statusEngineStop(reason, message) {
-    this._.status.running = false
-
+  /**
+   * Close
+   * - Closes the CLI process with relevant, clean information.
+   */
+  close(reason, message) {
     if (reason === 'error') {
       message = red(message)
     }
     if (reason === 'cancel') {
-      message = red('canceled')
+      message = red('Canceled')
     }
     if (reason === 'done') {
-      message = green(message || 'done')
+      message = green(message || 'Done')
     }
 
     // Clear any existing content
@@ -96,13 +78,13 @@ class CLI {
 
     // Write content
     this.log()
-    let content = ' '
-    if (this._.useTimer) {
-      content += ` ${grey(this._.seconds + 's')}`
-      content += ` ${grey(figures.pointerSmall)}`
+    let content = ''
+    if (this._.timer) {
+      content += `${grey(this._.timerSeconds + 's')}`
+      content += ` ${grey(figures.pointerSmall)} `
     }
-    content += ` ${this._.entity}`
-    content += ` ${grey(figures.pointerSmall)} ${message}`
+    content += `${this._.entity} `
+    content += `${grey(figures.pointerSmall)} ${message}`
     process.stdout.write(content)
 
     // Put cursor to starting position for next view
@@ -117,63 +99,29 @@ class CLI {
     }
   }
 
-  renderStatus(status, entity) {
-    // Start Status engine, if it isn't running yet
-    if (!this.isStatusEngineActive()) {
-      this.statusEngineStart()
-    }
-
-    // Set global status
-    if (status) {
-      this._.status.message = status
-    }
-
-    // Set global status
-    if (entity) {
-      this._.entity = entity
-    }
-
-    // Loading dots
-    if (this._.status.loadingDotCount === 0) {
-      this._.status.loadingDots = `.`
-    } else if (this._.status.loadingDotCount === 2) {
-      this._.status.loadingDots = `..`
-    } else if (this._.status.loadingDotCount === 4) {
-      this._.status.loadingDots = `...`
-    } else if (this._.status.loadingDotCount === 6) {
-      this._.status.loadingDots = ''
-    }
-    this._.status.loadingDotCount++
-    if (this._.status.loadingDotCount > 8) {
-      this._.status.loadingDotCount = 0
-    }
-
-    // Clear any existing content
-    process.stdout.write(ansiEscapes.eraseDown)
-
-    // Write content
-    console.log() // eslint-disable-line
-    let content = ' '
-    if (this._.useTimer) {
-      content += ` ${grey(this._.seconds + 's')}`
-      content += ` ${grey(figures.pointerSmall)}`
-    }
-
-    content += ` ${this._.entity}`
-    content += ` ${grey(figures.pointerSmall)} ${grey(this._.status.message)}`
-    content += ` ${grey(this._.status.loadingDots)}`
-    process.stdout.write(content)
-    console.log() // eslint-disable-line
-
-    // Get cursor starting position according to terminal & content width
-    const startingPosition = this.getRelativeVerticalCursorPosition(content)
-
-    // Put cursor to starting position for next view
-    process.stdout.write(ansiEscapes.cursorUp(startingPosition))
-    process.stdout.write(ansiEscapes.cursorLeft)
+  /**
+   * Debug Mode
+   * - Is debug mode enabled
+   */
+  debugMode() {
+    return this._.debug
   }
 
-  renderLog(msg) {
+  /**
+   * Status
+   * - Update status in the CLI session
+   * - Renders every 100ms
+   */
+  status(status, entity) {
+    this._.status = status || this._.status
+    this._.entity = entity || this._.entity
+  }
+
+  /**
+   * Log
+   * - Render log statements cleanly
+   */
+  log(msg) {
     if (!msg || msg == '') {
       console.log() // eslint-disable-line
       return
@@ -181,29 +129,37 @@ class CLI {
 
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
-    // console.log() // eslint-disable-line
 
-    console.log(`  ${msg}`) // eslint-disable-line
+    // Write log
+    console.log(`${msg}`) // eslint-disable-line
 
     // Put cursor to starting position for next view
     process.stdout.write(ansiEscapes.cursorLeft)
   }
 
-  renderDebug(msg) {
-    if (!this.debugMode || !msg || msg == '') {
+  /**
+   * Debug
+   * - Render debug statements cleanly
+   */
+  debug(msg) {
+    if (!this._.debug || !msg || msg == '') {
       return
     }
 
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
 
-    console.log(`  ${msg}`) // eslint-disable-line
+    console.log(`${msg}`) // eslint-disable-line
 
     // Put cursor to starting position for next view
     process.stdout.write(ansiEscapes.cursorLeft)
   }
 
-  renderError(error, entity) {
+  /**
+   * Error
+   * - Render and error and close a long-running CLI process.
+   */
+  error(error, simple = false) {
     // If no argument, skip
     if (!error || error === '') {
       return
@@ -215,65 +171,125 @@ class CLI {
 
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
-    console.log() // eslint-disable-line
 
-    // Write Error
-    if (entity) {
-      entity = `${red(entity)} ${red(figures.pointerSmall)} ${red(`error:`)}`
-      console.log(`  ${entity}`) // eslint-disable-line
+    // Render stack trace
+    if (!this._.debug && simple) {
+      // Put cursor to starting position for next view
+      process.stdout.write(ansiEscapes.cursorLeft)
+
+      return this.close('error', `Error: ${error.message}`)
     } else {
-      console.log(`  ${red('error:')}`) // eslint-disable-line
+      console.log() // eslint-disable-line
+      console.log(``, red(error.stack)) // eslint-disable-line
+
+      // Put cursor to starting position for next view
+      process.stdout.write(ansiEscapes.cursorLeft)
+
+      return this.close('error', `Error: ${error.message}`)
     }
-
-    delete error.name
-    console.log(` `, error) // eslint-disable-line
-
-    // Put cursor to starting position for next view
-    process.stdout.write(ansiEscapes.cursorLeft)
   }
 
-  renderOutputs(outputs) {
+  /**
+   * Outputs
+   * - Render outputs cleanly.
+   */
+  outputs(outputs) {
     if (typeof outputs !== 'object' || Object.keys(outputs).length === 0) {
       return
     }
     // Clear any existing content
     process.stdout.write(ansiEscapes.eraseDown)
     console.log() // eslint-disable-line
-    process.stdout.write(prettyoutput(outputs, {}, 2)) // eslint-disable-line
+    process.stdout.write(
+      prettyoutput(
+        outputs, 
+        {
+          colors: {}
+        }, 
+        0
+      )
+    ) // eslint-disable-line
   }
 
-  close(reason, message) {
-    // Skip if not active
-    process.stdout.write(ansiEscapes.cursorShow)
-    if (!this.isStatusEngineActive()) {
-      console.log() // eslint-disable-line
-      process.exit(0)
-      return
+  /**
+   * Render Engine
+   * Repetitively renders status and more on a regular interval
+   */
+  async _renderEngine() {
+    /**
+     * Debug Mode
+     */
+    if (this._.debug) {
+      // Print Status
+      if (this._.status !== this._.lastStatus) {
+        let content = `${this._.timerSeconds}s - Status - ${this._.status}`
+        process.stdout.write(content + os.EOL)
+        this._.lastStatus = '' + this._.status
+      }
     }
-    return this.statusEngineStop(reason, message)
+
+    /**
+     * Non-Debug Mode
+     */
+    if (!this._.debug) {
+      // Update active dots
+      if (this._.loadingDotCount === 0) {
+        this._.loadingDots = `.`
+      } else if (this._.loadingDotCount === 2) {
+        this._.loadingDots = `..`
+      } else if (this._.loadingDotCount === 4) {
+        this._.loadingDots = `...`
+      } else if (this._.loadingDotCount === 6) {
+        this._.loadingDots = ''
+      }
+      this._.loadingDotCount++
+      if (this._.loadingDotCount > 8) {
+        this._.loadingDotCount = 0
+      }
+
+      // Clear any existing content
+      process.stdout.write(ansiEscapes.eraseDown)
+
+      // Write status content
+      console.log() // eslint-disable-line
+      let content = ''
+      if (this._.timer) {
+        content += `${grey(this._.timerSeconds + 's')} `
+        content += `${grey(figures.pointerSmall)} `
+      }
+      content += `${this._.entity} `
+      content += `${grey(figures.pointerSmall)} ${grey(this._.status)}`
+      content += ` ${grey(this._.loadingDots)}`
+      process.stdout.write(content)
+      console.log() // eslint-disable-line
+
+      // Put cursor to starting position for next view
+      const startingPosition = this._getRelativeVerticalCursorPosition(content)
+      process.stdout.write(ansiEscapes.cursorUp(startingPosition))
+      process.stdout.write(ansiEscapes.cursorLeft)
+    }
+
+    await sleep(100)
+    return this._renderEngine()
   }
 
-  // basic CLI utilities
-  log(msg) {
-    this.renderLog(msg)
-  }
-
-  debug(msg) {
-    this.renderDebug(msg)
-  }
-
-  status(status, entity) {
-    this.renderStatus(status, entity)
-  }
-
-  error(e) {
-    this.renderError(e)
-    this.close('error', e)
-  }
-
-  outputs(outputs) {
-    return this.renderOutputs(outputs)
+  /**
+   * Get Relative Vertical Cursor Position
+   * Get cursor starting position according to terminal & content width
+   */
+  _getRelativeVerticalCursorPosition(contentString) {
+    const base = 1
+    const terminalWidth = process.stdout.columns
+    const contentWidth = stripAnsi(contentString).length
+    const nudges = Math.ceil(Number(contentWidth) / Number(terminalWidth))
+    return base + nudges
   }
 }
 
-module.exports = CLI
+/**
+ * Sleep
+ * - Because our "utils" contains business logic (and isn't exclusive to utils), circular dependencies are created and therefore "utils" cannot be required in this module.  Hence copying this here...
+ */
+const sleep = async (wait) => new Promise((resolve) => setTimeout(() => resolve(), wait))
+
+module.exports = new CLI()
