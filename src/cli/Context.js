@@ -11,18 +11,18 @@ const green = chalk.rgb(0, 253, 88)
 const red = chalk.rgb(255, 93, 93)
 
 /**
+ * Sleep
+ * - Because our "utils" contains business logic (and isn't exclusive to utils), circular dependencies are created and therefore "utils" cannot be required in this module.  Hence copying this here...
+ */
+const sleep = async (wait) => new Promise((resolve) => setTimeout(() => resolve(), wait))
+
+/**
  * CLI
  * - Controls the CLI experience in the framework.
  * - Once instantiated, it starts a single, long running process.
  */
-class CLI {
-  constructor() {}
-
-  /**
-   * Start
-   * - Starts the CLI process
-   */
-  start(config = {}) {
+class Context {
+  constructor(config) {
     // Defaults
     this._ = {}
     this._.entity = 'Serverless'
@@ -35,6 +35,17 @@ class CLI {
     this._.loadingDots = ''
     this._.loadingDotCount = 0
 
+    this.accessKey = config.accessKey
+    this.credentials = config.credentials
+    this.debugMode = config.debug || false
+    this.method = config.method
+  }
+
+  /**
+   * Start
+   * - Starts the CLI process
+   */
+  start() {
     // Hide cursor, to keep it clean
     process.stdout.write(ansiEscapes.cursorHide)
 
@@ -178,15 +189,14 @@ class CLI {
       process.stdout.write(ansiEscapes.cursorLeft)
 
       return this.close('error', `Error: ${error.message}`)
-    } 
-      console.log() // eslint-disable-line
-      console.log(``, red(error.stack)) // eslint-disable-line
+    }
+    console.log() // eslint-disable-line
+    console.log(``, red(error.stack)) // eslint-disable-line
 
-      // Put cursor to starting position for next view
-      process.stdout.write(ansiEscapes.cursorLeft)
+    // Put cursor to starting position for next view
+    process.stdout.write(ansiEscapes.cursorLeft)
 
-      return this.close('error', `Error: ${error.message}`)
-    
+    return this.close('error', `Error: ${error.message}`)
   }
 
   /**
@@ -286,10 +296,4 @@ class CLI {
   }
 }
 
-/**
- * Sleep
- * - Because our "utils" contains business logic (and isn't exclusive to utils), circular dependencies are created and therefore "utils" cannot be required in this module.  Hence copying this here...
- */
-const sleep = async (wait) => new Promise((resolve) => setTimeout(() => resolve(), wait))
-
-module.exports = new CLI()
+module.exports = Context
