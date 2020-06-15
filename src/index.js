@@ -1,10 +1,14 @@
 const path = require('path')
 const chokidar = require('chokidar')
+const chalk = require('chalk')
 const args = require('minimist')(process.argv.slice(2))
 const { utils } = require('@serverless/core')
 const cliVersion = require('../package.json').version
 const coreVersion = require('@serverless/core/package.json').version
+const processBackendNotificationRequest = require('@serverless/utils/process-backend-notification-request')
 const Context = require('./Context')
+const generateNotifiationsPayload = require('./notifications/generate-payload')
+const requestNotification = require('./notifications/request')
 
 const getServerlessFile = (dir) => {
   const jsFilePath = path.join(dir, 'serverless.js')
@@ -201,6 +205,11 @@ const runComponents = async (serverlessFileArg) => {
     }
 
     let outputs
+    const deferredNotificationsData = method
+      ? null
+      : requestNotification(
+          Object.assign(generateNotifiationsPayload(serverlessFile), { command: 'deploy' })
+        )
 
     if (method) {
       if (typeof component[method] !== 'function') {
@@ -212,6 +221,17 @@ const runComponents = async (serverlessFileArg) => {
     }
 
     context.renderOutputs(outputs)
+    if (deferredNotificationsData) {
+      const notification = processBackendNotificationRequest(await deferredNotificationsData)
+      if (notification) {
+        const borderLength = notification.message.length
+        context.log(
+          `${'*'.repeat(borderLength)}\n  ${chalk.bold(notification.message)}\n  ${'*'.repeat(
+            borderLength
+          )}\n`
+        )
+      }
+    }
     context.close('done')
     process.exit(0)
   } catch (e) {
