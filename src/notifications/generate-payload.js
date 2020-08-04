@@ -15,6 +15,7 @@ module.exports = (config) => {
         .filter(Boolean)
     },
     versions,
+    isStandalone: Boolean(process.pkg),
     isDashboardEnabled: false
   }
 }
