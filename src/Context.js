@@ -153,8 +153,11 @@ class CLI {
     process.stdout.write(ansiEscapes.cursorShow)
     if (!this.isStatusEngineActive()) {
       console.log() // eslint-disable-line
-      process.exit(0)
-      return
+      if (reason === 'error') {
+        process.exit(1)
+      } else {
+        process.exit(0)
+      }
     }
     return this.statusEngineStop(reason, message)
   }

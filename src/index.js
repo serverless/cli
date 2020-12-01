@@ -233,11 +233,9 @@ const runComponents = async (serverlessFileArg) => {
       }
     }
     context.close('done')
-    process.exit(0)
   } catch (e) {
     context.renderError(e)
     context.close('error', e)
-    process.exit(1)
   }
 }
 
