@@ -4,7 +4,8 @@
   "description": "Serverless Components CLI",
   "main": "./src/index.js",
   "bin": {
-    "components": "./bin/bin"
+    "components": "./bin/bin",
+    "components-v1": "./bin/bin"
   },
   "publishConfig": {
     "access": "public"
