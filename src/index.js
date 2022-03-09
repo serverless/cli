@@ -226,7 +226,8 @@ const runComponents = async (serverlessFileArg) => {
     if (deferredNotificationsData) {
       const notification = processBackendNotificationRequest(await deferredNotificationsData)
       if (notification) {
-        const borderLength = Math.min(notification.message.length, process.stdout.columns - 2)
+        const ttyLength = Math.max(process.stdout.columns - 2, 0)
+        const borderLength = Math.min(notification.message.length, ttyLength)
         context.log(
           `${'*'.repeat(borderLength)}\n  ${chalk.bold(notification.message)}\n  ${'*'.repeat(
             borderLength
